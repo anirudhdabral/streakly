@@ -64,8 +64,8 @@ function normalizeEntriesForSchedule(habit: Habit): Habit {
 }
 
 export default function HomePage() {
-  const THEME_BRAND_REVEAL_MS = 500;
-  const THEME_WAVE_TOTAL_MS = 980;
+  const THEME_BRAND_REVEAL_MS = 700;
+  const THEME_WAVE_TOTAL_MS = 1250;
 
   const confirm = useConfirm();
   const { mode, toggleMode } = useColorMode();
@@ -74,6 +74,7 @@ export default function HomePage() {
     y: number;
     scale: number;
     color: string;
+    nextMode: "light" | "dark";
     active: boolean;
     key: number;
   } | null>(null);
@@ -263,13 +264,14 @@ export default function HomePage() {
     const maxX = Math.max(x, window.innerWidth - x);
     const maxY = Math.max(y, window.innerHeight - y);
     const radius = Math.hypot(maxX, maxY);
-    const nextMode = mode === "dark" ? "light" : "dark";
+    const nextMode: "light" | "dark" = mode === "dark" ? "light" : "dark";
 
     const wave = {
       x,
       y,
       scale: radius / 12,
       color: nextMode === "dark" ? "#0c1413" : "#eef4f3",
+      nextMode,
       active: false,
       key: Date.now(),
     };
@@ -294,88 +296,97 @@ export default function HomePage() {
 
   return (
     <Container maxWidth="sm" sx={{ py: 3 }}>
-      {themeWave ? (
-        <>
-          <Box
-            key={themeWave.key}
-            sx={{
-              position: "fixed",
-              left: themeWave.x,
-              top: themeWave.y,
-              width: 24,
-              height: 24,
-              borderRadius: "50%",
-              backgroundColor: themeWave.color,
-              pointerEvents: "none",
-              zIndex: 2000,
-              transform: `translate(-50%, -50%) scale(${themeWave.active ? themeWave.scale : 0})`,
-              transition: "transform 700ms cubic-bezier(0.22, 1, 0.36, 1)",
-              willChange: "transform",
-            }}
-          />
-          <Box
-            sx={{
-              position: "fixed",
-              left: themeWave.x,
-              top: themeWave.y,
-              width: 24,
-              height: 24,
-              borderRadius: "50%",
-              backgroundColor:
-                mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
-              pointerEvents: "none",
-              zIndex: 1999,
-              filter: "blur(6px)",
-              transform: `translate(-50%, -50%) scale(${themeWave.active ? themeWave.scale * 1.08 : 0})`,
-              transition: "transform 720ms cubic-bezier(0.2, 1, 0.3, 1)",
-              willChange: "transform",
-            }}
-          />
-          <Box
-            sx={{
-              position: "fixed",
-              left: "50%",
-              top: "50%",
-              transform: `translate(-50%, -50%) scale(${themeWave.active ? 1 : 0.9})`,
-              opacity: themeWave.active ? 1 : 0,
-              transition: "opacity 300ms ease, transform 420ms ease",
-              pointerEvents: "none",
-              zIndex: 2001,
-              textAlign: "center",
-              userSelect: "none",
-            }}
-          >
-            <Typography
+      {(() => {
+        const revealMode = themeWave?.nextMode ?? mode;
+        return themeWave ? (
+          <>
+            <Box
+              key={themeWave.key}
               sx={{
-                fontSize: { xs: 28, sm: 38 },
-                fontWeight: 800,
-                letterSpacing: "-0.02em",
-                color: mode === "dark" ? "#d6ece8" : "#0f2b28",
-                textShadow:
-                  mode === "dark"
-                    ? "0 8px 30px rgba(0, 0, 0, 0.35)"
-                    : "0 8px 30px rgba(15, 43, 40, 0.18)",
+                position: "fixed",
+                left: themeWave.x,
+                top: themeWave.y,
+                width: 24,
+                height: 24,
+                borderRadius: "50%",
+                backgroundColor: themeWave.color,
+                pointerEvents: "none",
+                zIndex: 2000,
+                transform: `translate(-50%, -50%) scale(${themeWave.active ? themeWave.scale : 0})`,
+                transition: "transform 700ms cubic-bezier(0.22, 1, 0.36, 1)",
+                willChange: "transform",
+              }}
+            />
+            <Box
+              sx={{
+                position: "fixed",
+                left: themeWave.x,
+                top: themeWave.y,
+                width: 24,
+                height: 24,
+                borderRadius: "50%",
+                backgroundColor:
+                  revealMode === "dark"
+                    ? "rgba(255,255,255,0.08)"
+                    : "rgba(0,0,0,0.08)",
+                pointerEvents: "none",
+                zIndex: 1999,
+                filter: "blur(6px)",
+                transform: `translate(-50%, -50%) scale(${themeWave.active ? themeWave.scale * 1.08 : 0})`,
+                transition: "transform 720ms cubic-bezier(0.2, 1, 0.3, 1)",
+                willChange: "transform",
+              }}
+            />
+            <Box
+              sx={{
+                position: "fixed",
+                left: "50%",
+                top: "50%",
+                transform: `translate(-50%, -50%) scale(${themeWave.active ? 1 : 0.9})`,
+                opacity: themeWave.active ? 1 : 0,
+                transition: "opacity 300ms ease, transform 420ms ease",
+                pointerEvents: "none",
+                zIndex: 2001,
+                textAlign: "center",
+                userSelect: "none",
+                px: 2,
+                py: 1,
+                borderRadius: 2,
+                backdropFilter: "blur(3px)",
               }}
             >
-              Streakly
-            </Typography>
-            <Typography
-              sx={{
-                mt: 0.4,
-                fontSize: { xs: 12, sm: 14 },
-                fontWeight: 500,
-                letterSpacing: "0.02em",
-                color:
-                  mode === "dark"
-                    ? "rgba(214,236,232,0.86)"
-                    : "rgba(15,43,40,0.82)",
-              }}
-            >
-              your private habit tracker
-            </Typography>
-          </Box>
-        </>
-      ) : null}
+              <Typography
+                sx={{
+                  fontSize: { xs: 28, sm: 38 },
+                  fontWeight: 800,
+                  letterSpacing: "-0.02em",
+                  color: revealMode === "dark" ? "#e7f4f1" : "#0d2724",
+                  textShadow:
+                    revealMode === "dark"
+                      ? "0 10px 28px rgba(0, 0, 0, 0.5)"
+                      : "0 8px 24px rgba(15, 43, 40, 0.22)",
+                }}
+              >
+                Streakly
+              </Typography>
+              <Typography
+                sx={{
+                  mt: 0.4,
+                  fontSize: { xs: 12, sm: 14 },
+                  fontWeight: 500,
+                  letterSpacing: "0.02em",
+                  color:
+                    revealMode === "dark"
+                      ? "rgba(231,244,241,0.9)"
+                      : "rgba(13,39,36,0.86)",
+                }}
+              >
+                your private habit tracker
+              </Typography>
+            </Box>
+          </>
+        ) : null;
+      })()}
       <Stack spacing={2.5}>
         <Stack>
           <Stack
