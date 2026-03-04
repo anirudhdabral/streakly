@@ -1,9 +1,9 @@
 "use client";
 
-import { Box, LinearProgress, Paper, Stack, Typography } from "@mui/material";
-import { alpha, useTheme } from "@mui/material/styles";
 import { getHabitCompletionPercent, getMonthInsightCounts } from "@/lib/habits";
 import type { Habit } from "@/types/habit";
+import { Box, LinearProgress, Paper, Stack, Typography } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 
 interface InsightChartsProps {
   habits: Habit[];
@@ -16,15 +16,26 @@ const COLORS = {
   not_done: "#dc2626",
 };
 
-export default function InsightCharts({ habits, targetMonth }: InsightChartsProps) {
+export default function InsightCharts({
+  habits,
+  targetMonth,
+}: InsightChartsProps) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const counts = getMonthInsightCounts(habits, targetMonth);
 
-  const donePct = counts.total ? Math.round((counts.done / counts.total) * 100) : 0;
-  const skipPct = counts.total ? Math.round((counts.skip / counts.total) * 100) : 0;
-  const notDonePct = counts.total ? Math.round((counts.not_done / counts.total) * 100) : 0;
-  const adherencePct = counts.total ? Math.round(((counts.done + counts.skip) / counts.total) * 100) : 0;
+  const donePct = counts.total
+    ? Math.round((counts.done / counts.total) * 100)
+    : 0;
+  const skipPct = counts.total
+    ? Math.round((counts.skip / counts.total) * 100)
+    : 0;
+  const notDonePct = counts.total
+    ? Math.round((counts.not_done / counts.total) * 100)
+    : 0;
+  const adherencePct = counts.total
+    ? Math.round(((counts.done + counts.skip) / counts.total) * 100)
+    : 0;
 
   const perHabit = habits.map((habit) => ({
     id: habit.id,
@@ -33,11 +44,15 @@ export default function InsightCharts({ habits, targetMonth }: InsightChartsProp
   }));
 
   const bestHabit = perHabit.length
-    ? perHabit.reduce((best, current) => (current.percent > best.percent ? current : best))
+    ? perHabit.reduce((best, current) =>
+        current.percent > best.percent ? current : best,
+      )
     : null;
 
   const needsAttentionHabit = perHabit.length
-    ? perHabit.reduce((worst, current) => (current.percent < worst.percent ? current : worst))
+    ? perHabit.reduce((worst, current) =>
+        current.percent < worst.percent ? current : worst,
+      )
     : null;
 
   const statCardStyles = {
@@ -64,23 +79,68 @@ export default function InsightCharts({ habits, targetMonth }: InsightChartsProp
         <Typography variant="h6">Insights</Typography>
 
         <Stack direction="row" gap={1}>
-          <Paper sx={{ flex: 1, p: 1, borderRadius: 2, bgcolor: statCardStyles.done.bgcolor }}>
-            <Typography variant="caption" sx={{ color: statCardStyles.done.labelColor }}>
+          <Paper
+            sx={{
+              flex: 1,
+              p: 1,
+              borderRadius: 2,
+              bgcolor: statCardStyles.done.bgcolor,
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{ color: statCardStyles.done.labelColor }}
+            >
               DONE
             </Typography>
-            <Typography fontWeight={700} sx={{ color: statCardStyles.done.valueColor }}>{donePct}%</Typography>
+            <Typography
+              fontWeight={700}
+              sx={{ color: statCardStyles.done.valueColor }}
+            >
+              {donePct}%
+            </Typography>
           </Paper>
-          <Paper sx={{ flex: 1, p: 1, borderRadius: 2, bgcolor: statCardStyles.skip.bgcolor }}>
-            <Typography variant="caption" sx={{ color: statCardStyles.skip.labelColor }}>
+          <Paper
+            sx={{
+              flex: 1,
+              p: 1,
+              borderRadius: 2,
+              bgcolor: statCardStyles.skip.bgcolor,
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{ color: statCardStyles.skip.labelColor }}
+            >
               SKIP
             </Typography>
-            <Typography fontWeight={700} sx={{ color: statCardStyles.skip.valueColor }}>{skipPct}%</Typography>
+            <Typography
+              fontWeight={700}
+              sx={{ color: statCardStyles.skip.valueColor }}
+            >
+              {skipPct}%
+            </Typography>
           </Paper>
-          <Paper sx={{ flex: 1, p: 1, borderRadius: 2, bgcolor: statCardStyles.notDone.bgcolor }}>
-            <Typography variant="caption" sx={{ color: statCardStyles.notDone.labelColor }}>
+          <Paper
+            sx={{
+              flex: 1,
+              p: 1,
+              borderRadius: 2,
+              bgcolor: statCardStyles.notDone.bgcolor,
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{ color: statCardStyles.notDone.labelColor }}
+            >
               NOT DONE
             </Typography>
-            <Typography fontWeight={700} sx={{ color: statCardStyles.notDone.valueColor }}>{notDonePct}%</Typography>
+            <Typography
+              fontWeight={700}
+              sx={{ color: statCardStyles.notDone.valueColor }}
+            >
+              {notDonePct}%
+            </Typography>
           </Paper>
         </Stack>
 
@@ -113,21 +173,42 @@ export default function InsightCharts({ habits, targetMonth }: InsightChartsProp
               NEEDS ATTENTION
             </Typography>
             <Typography variant="body2" fontWeight={700} noWrap>
-              {needsAttentionHabit ? `${needsAttentionHabit.name} (${needsAttentionHabit.percent}%)` : "-"}
+              {needsAttentionHabit
+                ? `${needsAttentionHabit.name} (${needsAttentionHabit.percent}%)`
+                : "-"}
             </Typography>
           </Paper>
         </Stack>
 
-        <Box>
-          <Typography variant="body2" sx={{ mb: 1 }}>
-            Month breakdown
-          </Typography>
-          <Stack direction="row" sx={{ width: "100%", height: 14, borderRadius: 20, overflow: "hidden" }}>
-            <Box sx={{ width: `${donePct}%`, backgroundColor: COLORS.done }} />
-            <Box sx={{ width: `${skipPct}%`, backgroundColor: COLORS.skip }} />
-            <Box sx={{ width: `${notDonePct}%`, backgroundColor: COLORS.not_done }} />
-          </Stack>
-        </Box>
+        {counts.total > 0 && (
+          <Box>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              Month breakdown
+            </Typography>
+            <Stack
+              direction="row"
+              sx={{
+                width: "100%",
+                height: 14,
+                borderRadius: 20,
+                overflow: "hidden",
+              }}
+            >
+              <Box
+                sx={{ width: `${donePct}%`, backgroundColor: COLORS.done }}
+              />
+              <Box
+                sx={{ width: `${skipPct}%`, backgroundColor: COLORS.skip }}
+              />
+              <Box
+                sx={{
+                  width: `${notDonePct}%`,
+                  backgroundColor: COLORS.not_done,
+                }}
+              />
+            </Stack>
+          </Box>
+        )}
 
         <Stack spacing={1.25}>
           <Typography variant="body2">Per habit completion</Typography>
@@ -138,7 +219,11 @@ export default function InsightCharts({ habits, targetMonth }: InsightChartsProp
           ) : (
             perHabit.map((habit) => (
               <Box key={habit.id}>
-                <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  sx={{ mb: 0.5 }}
+                >
                   <Typography variant="caption" noWrap>
                     {habit.name}
                   </Typography>
@@ -150,7 +235,9 @@ export default function InsightCharts({ habits, targetMonth }: InsightChartsProp
                   sx={{
                     height: 9,
                     borderRadius: 99,
-                    backgroundColor: isDark ? alpha("#ffffff", 0.14) : "#dbe9e8",
+                    backgroundColor: isDark
+                      ? alpha("#ffffff", 0.14)
+                      : "#dbe9e8",
                   }}
                 />
               </Box>

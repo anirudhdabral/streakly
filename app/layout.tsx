@@ -35,9 +35,13 @@ export default async function RootLayout({
   const cookieStore = await cookies();
   const cookieMode = cookieStore.get("streakly-theme-mode")?.value;
   const initialMode = cookieMode === "dark" || cookieMode === "light" ? cookieMode : "light";
+  const initialThemeColor = initialMode === "dark" ? "#0c1413" : "#eef4f3";
 
   return (
     <html lang="en" data-theme={initialMode} style={{ colorScheme: initialMode }}>
+      <head>
+        <meta name="theme-color" content={initialThemeColor} />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <AppThemeProvider initialMode={initialMode}>{children}</AppThemeProvider>
       </body>
