@@ -15,6 +15,7 @@ body {
 html[data-theme="light"] body,
 body[data-theme="light"] {
   background:
+    linear-gradient(180deg, #f7fcfb 0, #f7fcfb 64px, rgba(247, 252, 251, 0) 100%),
     radial-gradient(95% 65% at 50% -15%, #d5ece6 0%, rgba(213, 236, 230, 0) 70%),
     linear-gradient(180deg, #f7fcfb 0%, #eef4f3 100%);
 }
@@ -22,6 +23,7 @@ body[data-theme="light"] {
 html[data-theme="dark"] body,
 body[data-theme="dark"] {
   background:
+    linear-gradient(180deg, #0f1a18 0, #0f1a18 64px, rgba(15, 26, 24, 0) 100%),
     radial-gradient(95% 65% at 50% -15%, #1a332f 0%, rgba(26, 51, 47, 0) 70%),
     linear-gradient(180deg, #0f1a18 0%, #0c1413 100%);
 }

@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Streakly: a lightweight offline-first habit tracker.",
     start_url: "/",
     display: "standalone",
-    background_color: "#eef4f3",
-    theme_color: "#eef4f3",
+    background_color: "#f7fcfb",
+    theme_color: "#f7fcfb",
     icons: [
       {
         src: "/android-chrome-192x192.png",

@@ -32,7 +32,7 @@ export default function AppThemeProvider({
   const [mode, setMode] = useState<PaletteMode>(initialMode);
 
   useEffect(() => {
-    const themeColor = mode === "dark" ? "#0c1413" : "#eef4f3";
+    const themeColor = mode === "dark" ? "#0f1a18" : "#f7fcfb";
     window.localStorage.setItem(COLOR_MODE_STORAGE_KEY, mode);
     document.cookie = `${COLOR_MODE_STORAGE_KEY}=${mode}; path=/; max-age=31536000; samesite=lax`;
     document.documentElement.setAttribute("data-theme", mode);
