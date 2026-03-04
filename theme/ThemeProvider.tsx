@@ -22,22 +22,20 @@ export function useColorMode(): ColorModeContextValue {
   return useContext(ColorModeContext);
 }
 
-export default function AppThemeProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<PaletteMode>(() => {
-    if (typeof window === "undefined") {
-      return "light";
-    }
-
-    const saved = window.localStorage.getItem(COLOR_MODE_STORAGE_KEY);
-    if (saved === "light" || saved === "dark") {
-      return saved;
-    }
-
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  });
+export default function AppThemeProvider({
+  children,
+  initialMode,
+}: {
+  children: ReactNode;
+  initialMode: PaletteMode;
+}) {
+  const [mode, setMode] = useState<PaletteMode>(initialMode);
 
   useEffect(() => {
     window.localStorage.setItem(COLOR_MODE_STORAGE_KEY, mode);
+    document.cookie = `${COLOR_MODE_STORAGE_KEY}=${mode}; path=/; max-age=31536000; samesite=lax`;
+    document.documentElement.setAttribute("data-theme", mode);
+    document.documentElement.style.colorScheme = mode;
     document.body.setAttribute("data-theme", mode);
   }, [mode]);
 
@@ -53,7 +51,7 @@ export default function AppThemeProvider({ children }: { children: ReactNode }) 
 
   return (
     <ColorModeContext.Provider value={colorModeValue}>
-      <ThemeProvider theme={appTheme}>
+      <ThemeProvider theme={appTheme} key={mode}>
         <CssBaseline />
         <ConfirmProvider
           defaultOptions={{

@@ -77,11 +77,9 @@ export default function HomePage() {
   const [isThemeAnimating, setIsThemeAnimating] = useState(false);
   const toggleTimeoutRef = useRef<number | null>(null);
   const clearWaveTimeoutRef = useRef<number | null>(null);
-  const [habits, setHabits] = useState<Habit[]>(() => getHabits());
+  const [habits, setHabits] = useState<Habit[]>([]);
   const [habitListTab, setHabitListTab] = useState<"today" | "all">("today");
-  const [selectedHabitId, setSelectedHabitId] = useState<string>(
-    () => getHabits()[0]?.id ?? "",
-  );
+  const [selectedHabitId, setSelectedHabitId] = useState<string>("");
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
   const [targetMonth, setTargetMonth] = useState<Date>(() => {
     const now = new Date();
@@ -99,6 +97,16 @@ export default function HomePage() {
         window.clearTimeout(clearWaveTimeoutRef.current);
       }
     };
+  }, []);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const storedHabits = getHabits();
+      setHabits(storedHabits);
+      setSelectedHabitId(storedHabits[0]?.id ?? "");
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   const today = useMemo(() => getTodayKey(), []);

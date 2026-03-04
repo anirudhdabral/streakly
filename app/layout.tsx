@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { cookies } from "next/headers";
 import "./globals.css";
 import AppThemeProvider from "@/theme/ThemeProvider";
 
@@ -26,15 +27,19 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const cookieMode = cookieStore.get("streakly-theme-mode")?.value;
+  const initialMode = cookieMode === "dark" || cookieMode === "light" ? cookieMode : "light";
+
   return (
-    <html lang="en">
+    <html lang="en" data-theme={initialMode} style={{ colorScheme: initialMode }}>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <AppThemeProvider>{children}</AppThemeProvider>
+        <AppThemeProvider initialMode={initialMode}>{children}</AppThemeProvider>
       </body>
     </html>
   );

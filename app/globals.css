@@ -10,15 +10,16 @@ body {
 
 body {
   min-height: 100vh;
-  transition: background 180ms ease;
 }
 
+html[data-theme="light"] body,
 body[data-theme="light"] {
   background:
     radial-gradient(95% 65% at 50% -15%, #d5ece6 0%, rgba(213, 236, 230, 0) 70%),
     linear-gradient(180deg, #f7fcfb 0%, #eef4f3 100%);
 }
 
+html[data-theme="dark"] body,
 body[data-theme="dark"] {
   background:
     radial-gradient(95% 65% at 50% -15%, #1a332f 0%, rgba(26, 51, 47, 0) 70%),
