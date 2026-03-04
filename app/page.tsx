@@ -64,6 +64,9 @@ function normalizeEntriesForSchedule(habit: Habit): Habit {
 }
 
 export default function HomePage() {
+  const THEME_BRAND_REVEAL_MS = 500;
+  const THEME_WAVE_TOTAL_MS = 980;
+
   const confirm = useConfirm();
   const { mode, toggleMode } = useColorMode();
   const [themeWave, setThemeWave] = useState<{
@@ -281,12 +284,12 @@ export default function HomePage() {
 
     toggleTimeoutRef.current = window.setTimeout(() => {
       toggleMode();
-    }, 180);
+    }, THEME_BRAND_REVEAL_MS);
 
     clearWaveTimeoutRef.current = window.setTimeout(() => {
       setThemeWave(null);
       setIsThemeAnimating(false);
-    }, 700);
+    }, THEME_WAVE_TOTAL_MS);
   };
 
   return (
