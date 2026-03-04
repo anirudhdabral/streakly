@@ -11,6 +11,7 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 import { BiSolidPencil } from "react-icons/bi";
 import { FaTrash } from "react-icons/fa";
 
@@ -104,6 +105,9 @@ export default function HabitCard({
   onEditHabit,
   onDeleteHabit,
 }: HabitCardProps) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
   return (
     <Card elevation={0} sx={{ overflow: "hidden" }}>
       <Stack direction="row" sx={{ minHeight: 96 }}>
@@ -169,8 +173,8 @@ export default function HabitCard({
                         size="small"
                         label={getScheduleText(habit)}
                         sx={{
-                          bgcolor: "#edf7f5",
-                          color: "primary.dark",
+                          bgcolor: isDark ? alpha("#2bb4a7", 0.22) : "#edf7f5",
+                          color: isDark ? "#bdf7ef" : "primary.dark",
                           height: 18,
                           fontSize: 11,
                         }}

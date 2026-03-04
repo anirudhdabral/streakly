@@ -1,6 +1,7 @@
 "use client";
 
 import { Box, LinearProgress, Paper, Stack, Typography } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 import { getHabitCompletionPercent, getMonthInsightCounts } from "@/lib/habits";
 import type { Habit } from "@/types/habit";
 
@@ -16,6 +17,8 @@ const COLORS = {
 };
 
 export default function InsightCharts({ habits, targetMonth }: InsightChartsProps) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const counts = getMonthInsightCounts(habits, targetMonth);
 
   const donePct = counts.total ? Math.round((counts.done / counts.total) * 100) : 0;
@@ -37,29 +40,47 @@ export default function InsightCharts({ habits, targetMonth }: InsightChartsProp
     ? perHabit.reduce((worst, current) => (current.percent < worst.percent ? current : worst))
     : null;
 
+  const statCardStyles = {
+    done: {
+      bgcolor: isDark ? alpha(COLORS.done, 0.32) : "#e0f2ef",
+      labelColor: isDark ? alpha("#ffffff", 0.85) : "#355c56",
+      valueColor: isDark ? "#bdf7ef" : "#123a34",
+    },
+    skip: {
+      bgcolor: isDark ? alpha(COLORS.skip, 0.34) : "#ffedd5",
+      labelColor: isDark ? alpha("#ffffff", 0.87) : "#6a3b14",
+      valueColor: isDark ? "#ffd8b3" : "#4a280f",
+    },
+    notDone: {
+      bgcolor: isDark ? alpha(COLORS.not_done, 0.34) : "#fee2e2",
+      labelColor: isDark ? alpha("#ffffff", 0.87) : "#6a1f1f",
+      valueColor: isDark ? "#ffd1d1" : "#4a1515",
+    },
+  };
+
   return (
     <Paper sx={{ p: 2 }}>
       <Stack spacing={2}>
         <Typography variant="h6">Insights</Typography>
 
         <Stack direction="row" gap={1}>
-          <Paper sx={{ flex: 1, p: 1, borderRadius: 2, bgcolor: "#e0f2ef" }}>
-            <Typography variant="caption" color="text.secondary">
+          <Paper sx={{ flex: 1, p: 1, borderRadius: 2, bgcolor: statCardStyles.done.bgcolor }}>
+            <Typography variant="caption" sx={{ color: statCardStyles.done.labelColor }}>
               DONE
             </Typography>
-            <Typography fontWeight={700}>{donePct}%</Typography>
+            <Typography fontWeight={700} sx={{ color: statCardStyles.done.valueColor }}>{donePct}%</Typography>
           </Paper>
-          <Paper sx={{ flex: 1, p: 1, borderRadius: 2, bgcolor: "#ffedd5" }}>
-            <Typography variant="caption" color="text.secondary">
+          <Paper sx={{ flex: 1, p: 1, borderRadius: 2, bgcolor: statCardStyles.skip.bgcolor }}>
+            <Typography variant="caption" sx={{ color: statCardStyles.skip.labelColor }}>
               SKIP
             </Typography>
-            <Typography fontWeight={700}>{skipPct}%</Typography>
+            <Typography fontWeight={700} sx={{ color: statCardStyles.skip.valueColor }}>{skipPct}%</Typography>
           </Paper>
-          <Paper sx={{ flex: 1, p: 1, borderRadius: 2, bgcolor: "#fee2e2" }}>
-            <Typography variant="caption" color="text.secondary">
+          <Paper sx={{ flex: 1, p: 1, borderRadius: 2, bgcolor: statCardStyles.notDone.bgcolor }}>
+            <Typography variant="caption" sx={{ color: statCardStyles.notDone.labelColor }}>
               NOT DONE
             </Typography>
-            <Typography fontWeight={700}>{notDonePct}%</Typography>
+            <Typography fontWeight={700} sx={{ color: statCardStyles.notDone.valueColor }}>{notDonePct}%</Typography>
           </Paper>
         </Stack>
 
@@ -126,7 +147,11 @@ export default function InsightCharts({ habits, targetMonth }: InsightChartsProp
                 <LinearProgress
                   variant="determinate"
                   value={habit.percent}
-                  sx={{ height: 9, borderRadius: 99, backgroundColor: "#dbe9e8" }}
+                  sx={{
+                    height: 9,
+                    borderRadius: 99,
+                    backgroundColor: isDark ? alpha("#ffffff", 0.14) : "#dbe9e8",
+                  }}
                 />
               </Box>
             ))

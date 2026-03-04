@@ -13,6 +13,7 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 import { addMonth, getCalendarMonthCells, isFutureDate, toDateKey } from "@/lib/date";
 import { getHabitStatus, isHabitTrackedOnDate } from "@/lib/habits";
 import type { Habit, HabitStatus } from "@/types/habit";
@@ -48,6 +49,8 @@ export default function CalendarView({
   onSelectHabit,
   onSetDateStatus,
 }: CalendarViewProps) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const [paintStatus, setPaintStatus] = useState<HabitStatus>("done");
 
   const selectedHabit = useMemo(
@@ -63,6 +66,27 @@ export default function CalendarView({
     ? Math.min(...habits.map((habit) => new Date(habit.createdAt).getFullYear()))
     : currentYear - 2;
   const yearOptions = Array.from({ length: currentYear + 3 - minHabitYear + 1 }, (_, index) => minHabitYear + index);
+
+  const legendStyle = (status: HabitStatus) => ({
+    bgcolor: isDark
+      ? alpha(STATUS_COLORS[status], status === "done" ? 0.32 : 0.34)
+      : status === "done"
+        ? "#e0f2ef"
+        : status === "skip"
+          ? "#ffedd5"
+          : "#fee2e2",
+    color: isDark
+      ? status === "done"
+        ? "#bdf7ef"
+        : status === "skip"
+          ? "#ffd8b3"
+          : "#ffd1d1"
+      : status === "done"
+        ? "#123a34"
+        : status === "skip"
+          ? "#4a280f"
+          : "#4a1515",
+  });
 
   return (
     <Paper sx={{ p: 2 }}>
@@ -99,9 +123,9 @@ export default function CalendarView({
           </Stack>
 
           <Stack direction="row" gap={0.75} flexWrap="wrap" justifyContent="flex-end">
-            <Chip size="small" label="Done" sx={{ bgcolor: "#e0f2ef", color: "#0f766e" }} />
-            <Chip size="small" label="Skip" sx={{ bgcolor: "#ffedd5", color: "#c2410c" }} />
-            <Chip size="small" label="Not done" sx={{ bgcolor: "#fee2e2", color: "#b91c1c" }} />
+            <Chip size="small" label="Done" sx={legendStyle("done")} />
+            <Chip size="small" label="Skip" sx={legendStyle("skip")} />
+            <Chip size="small" label="Not done" sx={legendStyle("not_done")} />
           </Stack>
         </Stack>
 

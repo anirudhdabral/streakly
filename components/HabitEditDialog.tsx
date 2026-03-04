@@ -119,6 +119,11 @@ export default function HabitEditDialog({ open, habit, onClose, onSave }: HabitE
                 labelId="edit-monthly-day"
                 value={monthlyDay}
                 label="Day of month"
+                MenuProps={{
+                  PaperProps: {
+                    sx: { maxHeight: 280 },
+                  },
+                }}
                 onChange={(event) => setMonthlyDay(Number(event.target.value))}
               >
                 {monthDays.map((day) => (

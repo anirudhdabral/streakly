@@ -178,6 +178,11 @@ export default function AddHabitForm({ onAddHabit, onExport, onImport }: AddHabi
             labelId="monthly-day"
             value={monthlyDay}
             label="Day of month"
+            MenuProps={{
+              PaperProps: {
+                sx: { maxHeight: 280 },
+              },
+            }}
             onChange={(event) => setMonthlyDay(Number(event.target.value))}
           >
             {monthDays.map((day) => (
