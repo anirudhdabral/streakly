@@ -1,16 +1,5 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import {
-  Alert,
-  Container,
-  Paper,
-  Stack,
-  Tab,
-  Tabs,
-  Typography,
-} from "@mui/material";
-import { useConfirm } from "material-ui-confirm";
 import AddHabitForm from "@/components/AddHabitForm";
 import CalendarView from "@/components/CalendarView";
 import HabitCard from "@/components/HabitCard";
@@ -28,7 +17,22 @@ import {
   importHabits,
   saveHabits,
 } from "@/lib/storage";
+import { useColorMode } from "@/theme/ThemeProvider";
 import type { Habit, HabitInput, HabitStatus } from "@/types/habit";
+import { DarkModeRounded, LightModeRounded } from "@mui/icons-material";
+import {
+  Alert,
+  Box,
+  Container,
+  IconButton,
+  Paper,
+  Stack,
+  Tab,
+  Tabs,
+  Typography,
+} from "@mui/material";
+import { useConfirm } from "material-ui-confirm";
+import { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 
 function formatDisplayDate(date: Date): string {
   const day = date.getDate();
@@ -61,6 +65,18 @@ function normalizeEntriesForSchedule(habit: Habit): Habit {
 
 export default function HomePage() {
   const confirm = useConfirm();
+  const { mode, toggleMode } = useColorMode();
+  const [themeWave, setThemeWave] = useState<{
+    x: number;
+    y: number;
+    scale: number;
+    color: string;
+    active: boolean;
+    key: number;
+  } | null>(null);
+  const [isThemeAnimating, setIsThemeAnimating] = useState(false);
+  const toggleTimeoutRef = useRef<number | null>(null);
+  const clearWaveTimeoutRef = useRef<number | null>(null);
   const [habits, setHabits] = useState<Habit[]>(() => getHabits());
   const [habitListTab, setHabitListTab] = useState<"today" | "all">("today");
   const [selectedHabitId, setSelectedHabitId] = useState<string>(
@@ -73,6 +89,17 @@ export default function HomePage() {
   });
   const [message, setMessage] = useState<string>("");
   const [error, setError] = useState<string>("");
+
+  useEffect(() => {
+    return () => {
+      if (toggleTimeoutRef.current) {
+        window.clearTimeout(toggleTimeoutRef.current);
+      }
+      if (clearWaveTimeoutRef.current) {
+        window.clearTimeout(clearWaveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const today = useMemo(() => getTodayKey(), []);
   const todayLabel = useMemo(() => formatDisplayDate(new Date()), []);
@@ -214,13 +241,183 @@ export default function HomePage() {
     }
   };
 
+  const handleThemeToggle = (event: MouseEvent<HTMLButtonElement>) => {
+    if (isThemeAnimating) {
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+    const maxX = Math.max(x, window.innerWidth - x);
+    const maxY = Math.max(y, window.innerHeight - y);
+    const radius = Math.hypot(maxX, maxY);
+    const nextMode = mode === "dark" ? "light" : "dark";
+
+    const wave = {
+      x,
+      y,
+      scale: radius / 12,
+      color: nextMode === "dark" ? "#0c1413" : "#eef4f3",
+      active: false,
+      key: Date.now(),
+    };
+
+    setThemeWave(wave);
+    setIsThemeAnimating(true);
+    requestAnimationFrame(() => {
+      setThemeWave((current) =>
+        current ? { ...current, active: true } : current,
+      );
+    });
+
+    toggleTimeoutRef.current = window.setTimeout(() => {
+      toggleMode();
+    }, 180);
+
+    clearWaveTimeoutRef.current = window.setTimeout(() => {
+      setThemeWave(null);
+      setIsThemeAnimating(false);
+    }, 700);
+  };
+
   return (
     <Container maxWidth="sm" sx={{ py: 3 }}>
+      {themeWave ? (
+        <>
+          <Box
+            key={themeWave.key}
+            sx={{
+              position: "fixed",
+              left: themeWave.x,
+              top: themeWave.y,
+              width: 24,
+              height: 24,
+              borderRadius: "50%",
+              backgroundColor: themeWave.color,
+              pointerEvents: "none",
+              zIndex: 2000,
+              transform: `translate(-50%, -50%) scale(${themeWave.active ? themeWave.scale : 0})`,
+              transition: "transform 700ms cubic-bezier(0.22, 1, 0.36, 1)",
+              willChange: "transform",
+            }}
+          />
+          <Box
+            sx={{
+              position: "fixed",
+              left: themeWave.x,
+              top: themeWave.y,
+              width: 24,
+              height: 24,
+              borderRadius: "50%",
+              backgroundColor:
+                mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+              pointerEvents: "none",
+              zIndex: 1999,
+              filter: "blur(6px)",
+              transform: `translate(-50%, -50%) scale(${themeWave.active ? themeWave.scale * 1.08 : 0})`,
+              transition: "transform 720ms cubic-bezier(0.2, 1, 0.3, 1)",
+              willChange: "transform",
+            }}
+          />
+          <Box
+            sx={{
+              position: "fixed",
+              left: "50%",
+              top: "50%",
+              transform: `translate(-50%, -50%) scale(${themeWave.active ? 1 : 0.9})`,
+              opacity: themeWave.active ? 1 : 0,
+              transition: "opacity 300ms ease, transform 420ms ease",
+              pointerEvents: "none",
+              zIndex: 2001,
+              textAlign: "center",
+              userSelect: "none",
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: { xs: 28, sm: 38 },
+                fontWeight: 800,
+                letterSpacing: "-0.02em",
+                color: mode === "dark" ? "#d6ece8" : "#0f2b28",
+                textShadow:
+                  mode === "dark"
+                    ? "0 8px 30px rgba(0, 0, 0, 0.35)"
+                    : "0 8px 30px rgba(15, 43, 40, 0.18)",
+              }}
+            >
+              Streakly
+            </Typography>
+            <Typography
+              sx={{
+                mt: 0.4,
+                fontSize: { xs: 12, sm: 14 },
+                fontWeight: 500,
+                letterSpacing: "0.02em",
+                color:
+                  mode === "dark"
+                    ? "rgba(214,236,232,0.86)"
+                    : "rgba(15,43,40,0.82)",
+              }}
+            >
+              your private habit tracker
+            </Typography>
+          </Box>
+        </>
+      ) : null}
       <Stack spacing={2.5}>
         <Stack>
-          <Typography variant="h4">Streakly</Typography>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            gap={1}
+          >
+            <Typography variant="h4">Streakly</Typography>
+            <IconButton
+              onClick={handleThemeToggle}
+              aria-label="Toggle theme"
+              disabled={isThemeAnimating}
+              sx={{
+                border: "1px solid",
+                borderColor: "divider",
+                bgcolor: "background.paper",
+                width: 40,
+                height: 40,
+                transition: "transform 220ms ease, background-color 200ms ease",
+                "&:hover": {
+                  transform: "rotate(10deg) scale(1.04)",
+                },
+              }}
+            >
+              <Box
+                sx={{
+                  display: "inline-flex",
+                  transform: `scale(${isThemeAnimating ? 0.85 : 1})`,
+                  transition: "transform 260ms ease",
+                }}
+              >
+                {mode === "dark" ? (
+                  <LightModeRounded fontSize="small" />
+                ) : (
+                  <DarkModeRounded fontSize="small" />
+                )}
+              </Box>
+            </IconButton>
+          </Stack>
           <Typography color="text.secondary">
-            Build consistency, one day at a time. Today: {todayLabel}
+            Build consistency, one day at a time.
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{
+              mt: 0.4,
+              fontWeight: 600,
+              color: "text.primary",
+              letterSpacing: "0.01em",
+            }}
+          >
+            Today: {todayLabel}
           </Typography>
         </Stack>
 
@@ -291,6 +488,13 @@ export default function HomePage() {
         />
 
         <InsightCharts habits={habits} targetMonth={targetMonth} />
+
+        <Stack alignItems="center">
+          <Typography variant="body2" color="text.secondary">
+            Private by design; your data stays stored locally, and only you can
+            access it.
+          </Typography>
+        </Stack>
       </Stack>
 
       <HabitEditDialog
@@ -303,4 +507,3 @@ export default function HomePage() {
     </Container>
   );
 }
-

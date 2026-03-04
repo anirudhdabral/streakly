@@ -1,26 +1,70 @@
 "use client";
 
-import { ReactNode } from "react";
+import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import CssBaseline from "@mui/material/CssBaseline";
-import { ThemeProvider, createTheme } from "@mui/material/styles";
+import { PaletteMode, ThemeProvider, createTheme } from "@mui/material/styles";
 import { ConfirmProvider } from "material-ui-confirm";
-import { appThemeOptions } from "@/theme/theme";
+import { getAppThemeOptions } from "@/theme/theme";
 
-const appTheme = createTheme(appThemeOptions);
+type ColorModeContextValue = {
+  mode: PaletteMode;
+  toggleMode: () => void;
+};
+
+const COLOR_MODE_STORAGE_KEY = "streakly-theme-mode";
+
+const ColorModeContext = createContext<ColorModeContextValue>({
+  mode: "light",
+  toggleMode: () => undefined,
+});
+
+export function useColorMode(): ColorModeContextValue {
+  return useContext(ColorModeContext);
+}
 
 export default function AppThemeProvider({ children }: { children: ReactNode }) {
+  const [mode, setMode] = useState<PaletteMode>(() => {
+    if (typeof window === "undefined") {
+      return "light";
+    }
+
+    const saved = window.localStorage.getItem(COLOR_MODE_STORAGE_KEY);
+    if (saved === "light" || saved === "dark") {
+      return saved;
+    }
+
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem(COLOR_MODE_STORAGE_KEY, mode);
+    document.body.setAttribute("data-theme", mode);
+  }, [mode]);
+
+  const colorModeValue = useMemo<ColorModeContextValue>(
+    () => ({
+      mode,
+      toggleMode: () => setMode((prev) => (prev === "light" ? "dark" : "light")),
+    }),
+    [mode]
+  );
+
+  const appTheme = useMemo(() => createTheme(getAppThemeOptions(mode)), [mode]);
+
   return (
-    <ThemeProvider theme={appTheme}>
-      <CssBaseline />
-      <ConfirmProvider
-        defaultOptions={{
-          cancellationText: "Cancel",
-          confirmationText: "Delete",
-          confirmationButtonProps: { color: "error", variant: "contained" },
-        }}
-      >
-        {children}
-      </ConfirmProvider>
-    </ThemeProvider>
+    <ColorModeContext.Provider value={colorModeValue}>
+      <ThemeProvider theme={appTheme}>
+        <CssBaseline />
+        <ConfirmProvider
+          defaultOptions={{
+            cancellationText: "Cancel",
+            confirmationText: "Delete",
+            confirmationButtonProps: { color: "error", variant: "contained" },
+          }}
+        >
+          {children}
+        </ConfirmProvider>
+      </ThemeProvider>
+    </ColorModeContext.Provider>
   );
 }
