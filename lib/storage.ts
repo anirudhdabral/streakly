@@ -1,5 +1,10 @@
 import { toDateKey } from "@/lib/date";
-import type { Habit, HabitExportPayload, HabitFrequency, HabitStatus } from "@/types/habit";
+import type {
+  Habit,
+  HabitExportPayload,
+  HabitFrequency,
+  HabitStatus,
+} from "@/types/habit";
 
 const STORAGE_KEY = "habit-tracker-data";
 const VALID_STATUSES: HabitStatus[] = ["done", "skip", "not_done"];
@@ -12,8 +17,21 @@ interface LegacyHabit {
   createdAt: string;
 }
 
+function normalizeNotificationTime(value: unknown): string {
+  if (
+    typeof value === "string" &&
+    /^([01]\d|2[0-3]):([0-5]\d)$/.test(value)
+  ) {
+    return value;
+  }
+
+  return "09:00";
+}
+
 function isStatus(value: unknown): value is HabitStatus {
-  return typeof value === "string" && VALID_STATUSES.includes(value as HabitStatus);
+  return (
+    typeof value === "string" && VALID_STATUSES.includes(value as HabitStatus)
+  );
 }
 
 function normalizeWeeklyDays(value: unknown, fallbackDay: number): number[] {
@@ -22,7 +40,9 @@ function normalizeWeeklyDays(value: unknown, fallbackDay: number): number[] {
   }
 
   const days = value
-    .filter((day): day is number => typeof day === "number" && day >= 0 && day <= 6)
+    .filter(
+      (day): day is number => typeof day === "number" && day >= 0 && day <= 6,
+    )
     .map((day) => Math.floor(day));
 
   return days.length > 0 ? Array.from(new Set(days)) : [fallbackDay];
@@ -35,7 +55,11 @@ function normalizeHabit(candidate: unknown): Habit | null {
 
   const raw = candidate as Partial<Habit> & Partial<LegacyHabit>;
 
-  if (typeof raw.id !== "string" || typeof raw.name !== "string" || typeof raw.createdAt !== "string") {
+  if (
+    typeof raw.id !== "string" ||
+    typeof raw.name !== "string" ||
+    typeof raw.createdAt !== "string"
+  ) {
     return null;
   }
 
@@ -49,13 +73,20 @@ function normalizeHabit(candidate: unknown): Habit | null {
 
   const weeklyDays = normalizeWeeklyDays(raw.weeklyDays, createdWeekDay);
   const monthlyDay =
-    typeof raw.monthlyDay === "number" && raw.monthlyDay >= 1 && raw.monthlyDay <= 31
+    typeof raw.monthlyDay === "number" &&
+    raw.monthlyDay >= 1 &&
+    raw.monthlyDay <= 31
       ? Math.floor(raw.monthlyDay)
       : createdMonthDay;
+  const notificationTime = normalizeNotificationTime(raw.notificationTime);
 
   const entries: Record<string, HabitStatus> = {};
 
-  if (raw.entries && typeof raw.entries === "object" && !Array.isArray(raw.entries)) {
+  if (
+    raw.entries &&
+    typeof raw.entries === "object" &&
+    !Array.isArray(raw.entries)
+  ) {
     for (const [key, value] of Object.entries(raw.entries)) {
       if (isStatus(value) && key >= toDateKey(createdDate)) {
         entries[key] = value;
@@ -78,27 +109,24 @@ function normalizeHabit(candidate: unknown): Habit | null {
     frequency,
     weeklyDays,
     monthlyDay,
+    notificationTime,
     entries,
   };
 }
 
 function normalizeHabits(value: unknown): Habit[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
+  if (!Array.isArray(value)) return [];
 
-  return value.map(normalizeHabit).filter((habit): habit is Habit => Boolean(habit));
+  return value
+    .map(normalizeHabit)
+    .filter((habit): habit is Habit => Boolean(habit));
 }
 
 export function getHabits(): Habit[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
+  if (typeof window === "undefined") return [];
 
   const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    return [];
-  }
+  if (!raw) return [];
 
   try {
     return normalizeHabits(JSON.parse(raw));
@@ -108,16 +136,14 @@ export function getHabits(): Habit[] {
 }
 
 export function saveHabits(habits: Habit[]): void {
-  if (typeof window === "undefined") {
-    return;
-  }
+  if (typeof window === "undefined") return;
 
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(habits));
 }
 
 export function exportHabits(habits: Habit[]): string {
   const payload: HabitExportPayload = {
-    version: 3,
+    version: 4,
     exportedAt: new Date().toISOString(),
     habits,
   };

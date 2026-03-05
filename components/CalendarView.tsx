@@ -1,6 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  addMonth,
+  getCalendarMonthCells,
+  isFutureDate,
+  toDateKey,
+} from "@/lib/date";
+import { getHabitStatus, isHabitTrackedOnDate } from "@/lib/habits";
+import type { Habit, HabitStatus } from "@/types/habit";
 import {
   Box,
   Button,
@@ -9,14 +16,12 @@ import {
   Paper,
   Select,
   Stack,
-  ToggleButton,
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
-import { addMonth, getCalendarMonthCells, isFutureDate, toDateKey } from "@/lib/date";
-import { getHabitStatus, isHabitTrackedOnDate } from "@/lib/habits";
-import type { Habit, HabitStatus } from "@/types/habit";
+import { useMemo, useState } from "react";
+import AnimatedToggleButton from "@/components/AnimatedToggleButton";
 
 interface CalendarViewProps {
   habits: Habit[];
@@ -24,7 +29,11 @@ interface CalendarViewProps {
   targetMonth: Date;
   onChangeMonth: (nextMonth: Date) => void;
   onSelectHabit: (habitId: string) => void;
-  onSetDateStatus: (habitId: string, dateKey: string, status: HabitStatus) => void;
+  onSetDateStatus: (
+    habitId: string,
+    dateKey: string,
+    status: HabitStatus,
+  ) => void;
 }
 
 const STATUS_LABELS: Record<HabitStatus, string> = {
@@ -55,17 +64,24 @@ export default function CalendarView({
 
   const selectedHabit = useMemo(
     () => habits.find((habit) => habit.id === selectedHabitId) ?? null,
-    [habits, selectedHabitId]
+    [habits, selectedHabitId],
   );
 
   const monthCells = getCalendarMonthCells(targetMonth);
-  const monthLabel = targetMonth.toLocaleDateString(undefined, { month: "long" });
+  const monthLabel = targetMonth.toLocaleDateString(undefined, {
+    month: "short",
+  });
   const activeYear = targetMonth.getFullYear();
   const currentYear = new Date().getFullYear();
   const minHabitYear = habits.length
-    ? Math.min(...habits.map((habit) => new Date(habit.createdAt).getFullYear()))
+    ? Math.min(
+        ...habits.map((habit) => new Date(habit.createdAt).getFullYear()),
+      )
     : currentYear - 2;
-  const yearOptions = Array.from({ length: currentYear + 3 - minHabitYear + 1 }, (_, index) => minHabitYear + index);
+  const yearOptions = Array.from(
+    { length: currentYear + 3 - minHabitYear + 1 },
+    (_, index) => minHabitYear + index,
+  );
 
   const legendStyle = (status: HabitStatus) => ({
     bgcolor: isDark
@@ -91,26 +107,50 @@ export default function CalendarView({
   return (
     <Paper sx={{ p: 2 }}>
       <Stack spacing={2}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+        >
           <Typography variant="h6">Calendar</Typography>
           <Stack direction="row" gap={1}>
-            <Button size="small" variant="outlined" onClick={() => onChangeMonth(addMonth(targetMonth, -1))}>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => onChangeMonth(addMonth(targetMonth, -1))}
+            >
               Prev
             </Button>
-            <Button size="small" variant="outlined" onClick={() => onChangeMonth(addMonth(targetMonth, 1))}>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => onChangeMonth(addMonth(targetMonth, 1))}
+            >
               Next
             </Button>
           </Stack>
         </Stack>
 
-        <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1} flexWrap="wrap">
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          gap={1}
+          flexWrap="wrap"
+        >
           <Stack direction="row" alignItems="center" gap={1}>
             <Typography color="text.secondary">{monthLabel}</Typography>
             <Select
               size="small"
               value={activeYear}
               onChange={(event) =>
-                onChangeMonth(new Date(Number(event.target.value), targetMonth.getMonth(), 1))
+                onChangeMonth(
+                  new Date(
+                    Number(event.target.value),
+                    targetMonth.getMonth(),
+                    1,
+                  ),
+                )
               }
               sx={{ minWidth: 92 }}
             >
@@ -122,7 +162,12 @@ export default function CalendarView({
             </Select>
           </Stack>
 
-          <Stack direction="row" gap={0.75} flexWrap="wrap" justifyContent="flex-end">
+          <Stack
+            direction="row"
+            gap={0.75}
+            flexWrap="wrap"
+            justifyContent="flex-end"
+          >
             <Chip size="small" label="Done" sx={legendStyle("done")} />
             <Chip size="small" label="Skip" sx={legendStyle("skip")} />
             <Chip size="small" label="Not done" sx={legendStyle("not_done")} />
@@ -155,21 +200,30 @@ export default function CalendarView({
           value={paintStatus}
           exclusive
           onChange={(_, value: HabitStatus | null) => {
-            if (value) {
-              setPaintStatus(value);
-            }
+            if (value) setPaintStatus(value);
           }}
         >
           {(["done", "skip", "not_done"] as HabitStatus[]).map((status) => (
-            <ToggleButton key={status} value={status}>
+            <AnimatedToggleButton key={status} value={status}>
               Paint: {STATUS_LABELS[status]}
-            </ToggleButton>
+            </AnimatedToggleButton>
           ))}
         </ToggleButtonGroup>
 
-        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 0.75 }}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+            gap: 0.75,
+          }}
+        >
           {WEEK_DAYS.map((dayName) => (
-            <Typography key={dayName} variant="caption" textAlign="center" color="text.secondary">
+            <Typography
+              key={dayName}
+              variant="caption"
+              textAlign="center"
+              color="text.secondary"
+            >
               {dayName}
             </Typography>
           ))}
@@ -177,9 +231,15 @@ export default function CalendarView({
           {monthCells.map(({ date, inCurrentMonth }, index) => {
             const dateKey = toDateKey(date);
             const inFuture = isFutureDate(date);
-            const isTracked = selectedHabit ? isHabitTrackedOnDate(selectedHabit, dateKey) : false;
-            const disabled = !selectedHabit || !inCurrentMonth || inFuture || !isTracked;
-            const status = selectedHabit && isTracked ? getHabitStatus(selectedHabit, dateKey) : "not_done";
+            const isTracked = selectedHabit
+              ? isHabitTrackedOnDate(selectedHabit, dateKey)
+              : false;
+            const disabled =
+              !selectedHabit || !inCurrentMonth || inFuture || !isTracked;
+            const status =
+              selectedHabit && isTracked
+                ? getHabitStatus(selectedHabit, dateKey)
+                : "not_done";
 
             return (
               <Button
@@ -188,10 +248,7 @@ export default function CalendarView({
                 variant="outlined"
                 disabled={disabled}
                 onClick={() => {
-                  if (!selectedHabit) {
-                    return;
-                  }
-
+                  if (!selectedHabit) return;
                   onSetDateStatus(selectedHabit.id, dateKey, paintStatus);
                 }}
                 sx={{

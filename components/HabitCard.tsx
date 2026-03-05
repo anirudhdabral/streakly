@@ -1,13 +1,13 @@
 "use client";
 
 import type { Habit, HabitStatus } from "@/types/habit";
+import AnimatedToggleButton from "@/components/AnimatedToggleButton";
 import {
   Card,
   CardContent,
   Chip,
   IconButton,
   Stack,
-  ToggleButton,
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
@@ -89,9 +89,9 @@ function StatusSwitcher({
       }}
     >
       {(["done", "skip", "not_done"] as HabitStatus[]).map((status) => (
-        <ToggleButton key={status} value={status}>
+        <AnimatedToggleButton key={status} value={status}>
           {STATUS_LABELS[status]}
-        </ToggleButton>
+        </AnimatedToggleButton>
       ))}
     </ToggleButtonGroup>
   );

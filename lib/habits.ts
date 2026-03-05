@@ -1,4 +1,9 @@
-import { fromDateKey, getDaysInMonth, getTodayKey, toDateKey } from "@/lib/date";
+import {
+  fromDateKey,
+  getDaysInMonth,
+  getTodayKey,
+  toDateKey,
+} from "@/lib/date";
 import type { Habit, HabitStatus } from "@/types/habit";
 
 export const STATUS_OPTIONS: HabitStatus[] = ["done", "skip", "not_done"];
@@ -25,7 +30,11 @@ export function isHabitTrackedOnDate(habit: Habit, dateKey: string): boolean {
     return habit.weeklyDays.includes(date.getDay());
   }
 
-  const monthLastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  const monthLastDay = new Date(
+    date.getFullYear(),
+    date.getMonth() + 1,
+    0,
+  ).getDate();
   const effectiveMonthlyDay = Math.min(habit.monthlyDay, monthLastDay);
   return date.getDate() === effectiveMonthlyDay;
 }
@@ -38,7 +47,11 @@ export function getHabitStatus(habit: Habit, dateKey: string): HabitStatus {
   return habit.entries[dateKey] ?? "not_done";
 }
 
-export function setHabitStatus(habit: Habit, dateKey: string, status: HabitStatus): Habit {
+export function setHabitStatus(
+  habit: Habit,
+  dateKey: string,
+  status: HabitStatus,
+): Habit {
   if (!isHabitTrackedOnDate(habit, dateKey)) {
     return habit;
   }
@@ -52,12 +65,17 @@ export function setHabitStatus(habit: Habit, dateKey: string, status: HabitStatu
   };
 }
 
-export function getTrackedDateKeysForHabitInMonth(habit: Habit, targetMonth: Date): string[] {
+export function getTrackedDateKeysForHabitInMonth(
+  habit: Habit,
+  targetMonth: Date,
+): string[] {
   const todayKey = getTodayKey();
 
   return getDaysInMonth(targetMonth)
     .map(toDateKey)
-    .filter((dateKey) => dateKey <= todayKey && isHabitTrackedOnDate(habit, dateKey));
+    .filter(
+      (dateKey) => dateKey <= todayKey && isHabitTrackedOnDate(habit, dateKey),
+    );
 }
 
 export interface MonthInsightCounts {
@@ -67,7 +85,10 @@ export interface MonthInsightCounts {
   total: number;
 }
 
-export function getMonthInsightCounts(habits: Habit[], targetMonth: Date): MonthInsightCounts {
+export function getMonthInsightCounts(
+  habits: Habit[],
+  targetMonth: Date,
+): MonthInsightCounts {
   if (habits.length === 0) {
     return { done: 0, skip: 0, not_done: 0, total: 0 };
   }
@@ -101,11 +122,12 @@ export function getMonthInsightCounts(habits: Habit[], targetMonth: Date): Month
   };
 }
 
-export function getHabitCompletionPercent(habit: Habit, targetMonth: Date): number {
+export function getHabitCompletionPercent(
+  habit: Habit,
+  targetMonth: Date,
+): number {
   const keys = getTrackedDateKeysForHabitInMonth(habit, targetMonth);
-  if (keys.length === 0) {
-    return 0;
-  }
+  if (keys.length === 0) return 0;
 
   let done = 0;
   for (const key of keys) {

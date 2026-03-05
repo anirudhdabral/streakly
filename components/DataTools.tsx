@@ -1,7 +1,7 @@
 "use client";
 
-import { ChangeEvent } from "react";
 import { Button, Stack, Typography } from "@mui/material";
+import { ChangeEvent } from "react";
 
 interface DataToolsProps {
   onExport: () => void;
@@ -11,10 +11,7 @@ interface DataToolsProps {
 export default function DataTools({ onExport, onImport }: DataToolsProps) {
   const handleImportChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
+    if (!file) return;
     onImport(file);
     event.target.value = "";
   };
@@ -30,7 +27,12 @@ export default function DataTools({ onExport, onImport }: DataToolsProps) {
         </Button>
         <Button variant="outlined" component="label" fullWidth>
           Import JSON
-          <input hidden type="file" accept="application/json" onChange={handleImportChange} />
+          <input
+            hidden
+            type="file"
+            accept="application/json"
+            onChange={handleImportChange}
+          />
         </Button>
       </Stack>
     </Stack>

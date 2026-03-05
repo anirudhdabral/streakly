@@ -1,7 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import ReminderTimeSelect from "@/components/ReminderTimeSelect";
+import AnimatedToggleButton from "@/components/AnimatedToggleButton";
+import type { Habit, HabitFrequency, HabitInput } from "@/types/habit";
 import {
+  Box,
   Button,
   Dialog,
   DialogActions,
@@ -13,11 +16,11 @@ import {
   Select,
   Stack,
   TextField,
-  ToggleButton,
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
-import type { Habit, HabitFrequency, HabitInput } from "@/types/habit";
+import { AnimatePresence, motion } from "framer-motion";
+import { useMemo, useState } from "react";
 
 interface HabitEditDialogProps {
   open: boolean;
@@ -28,29 +31,43 @@ interface HabitEditDialogProps {
 
 const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export default function HabitEditDialog({ open, habit, onClose, onSave }: HabitEditDialogProps) {
+export default function HabitEditDialog({
+  open,
+  habit,
+  onClose,
+  onSave,
+}: HabitEditDialogProps) {
   const [habitName, setHabitName] = useState(() => habit?.name ?? "");
-  const [frequency, setFrequency] = useState<HabitFrequency>(() => habit?.frequency ?? "daily");
-  const [weeklyDays, setWeeklyDays] = useState<number[]>(() => habit?.weeklyDays ?? [new Date().getDay()]);
-  const [monthlyDay, setMonthlyDay] = useState<number>(() => habit?.monthlyDay ?? new Date().getDate());
+  const [frequency, setFrequency] = useState<HabitFrequency>(
+    () => habit?.frequency ?? "daily",
+  );
+  const [weeklyDays, setWeeklyDays] = useState<number[]>(
+    () => habit?.weeklyDays ?? [new Date().getDay()],
+  );
+  const [monthlyDay, setMonthlyDay] = useState<number>(
+    () => habit?.monthlyDay ?? new Date().getDate(),
+  );
+  const [notificationTime, setNotificationTime] = useState<string>(
+    () => habit?.notificationTime ?? "09:00",
+  );
 
-  const monthDays = useMemo(() => Array.from({ length: 31 }, (_, index) => index + 1), []);
+  const monthDays = useMemo(
+    () => Array.from({ length: 31 }, (_, index) => index + 1),
+    [],
+  );
 
   const handleSave = () => {
-    if (!habit) {
-      return;
-    }
+    if (!habit) return;
 
     const trimmedName = habitName.trim();
-    if (!trimmedName) {
-      return;
-    }
+    if (!trimmedName) return;
 
     onSave(habit.id, {
       name: trimmedName,
       frequency,
       weeklyDays: frequency === "weekly" ? weeklyDays : [],
       monthlyDay: frequency === "monthly" ? monthlyDay : undefined,
+      notificationTime,
     });
 
     onClose();
@@ -60,85 +77,127 @@ export default function HabitEditDialog({ open, habit, onClose, onSave }: HabitE
     <Dialog open={open} onClose={onClose} fullWidth>
       <DialogTitle>Edit habit</DialogTitle>
       <DialogContent>
-        <Stack gap={1.25} sx={{ mt: 0.5 }}>
+        <Stack gap={1.5} sx={{ mt: 0.5 }}>
           <TextField
             fullWidth
             size="small"
             label="Habit name"
             value={habitName}
             onChange={(event) => setHabitName(event.target.value)}
+            sx={{ "& .MuiInputBase-root": { borderRadius: 2 } }}
           />
-
-          <Typography variant="caption" color="text.secondary">
-            Frequency
-          </Typography>
-          <ToggleButtonGroup
-            exclusive
-            size="small"
-            fullWidth
-            value={frequency}
-            onChange={(_, value: HabitFrequency | null) => {
-              if (value) {
-                setFrequency(value);
-              }
-            }}
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            gap={1}
+            alignItems={{ xs: "stretch", sm: "flex-end" }}
           >
-            <ToggleButton value="daily">Daily</ToggleButton>
-            <ToggleButton value="weekly">Weekly</ToggleButton>
-            <ToggleButton value="monthly">Monthly</ToggleButton>
-          </ToggleButtonGroup>
-
-          {frequency === "weekly" ? (
-            <Stack gap={0.5}>
-              <Typography variant="caption" color="text.secondary">
-                Active weekdays
+            <Box sx={{ flex: 2 }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ mb: 0.5, display: "block" }}
+              >
+                Frequency
               </Typography>
               <ToggleButtonGroup
+                exclusive
                 size="small"
                 fullWidth
-                value={weeklyDays}
-                onChange={(_, value: number[]) => {
-                  if (value.length > 0) {
-                    setWeeklyDays(value);
+                value={frequency}
+                sx={{ "& .MuiToggleButton-root": { py: 0.95 } }}
+                onChange={(_, value: HabitFrequency | null) => {
+                  if (value) {
+                    setFrequency(value);
                   }
                 }}
               >
-                {WEEK_DAYS.map((label, index) => (
-                  <ToggleButton key={label} value={index}>
-                    {label}
-                  </ToggleButton>
-                ))}
+                <AnimatedToggleButton value="daily">Daily</AnimatedToggleButton>
+                <AnimatedToggleButton value="weekly">Weekly</AnimatedToggleButton>
+                <AnimatedToggleButton value="monthly">Monthly</AnimatedToggleButton>
               </ToggleButtonGroup>
-            </Stack>
-          ) : null}
+            </Box>
+            <Box sx={{ flex: 1, minWidth: { sm: 170 } }}>
+              <ReminderTimeSelect
+                id="edit-reminder-time"
+                label="Reminder time"
+                value={notificationTime}
+                onChange={setNotificationTime}
+              />
+            </Box>
+          </Stack>
 
-          {frequency === "monthly" ? (
-            <FormControl size="small">
-              <InputLabel id="edit-monthly-day">Day of month</InputLabel>
-              <Select
-                labelId="edit-monthly-day"
-                value={monthlyDay}
-                label="Day of month"
-                MenuProps={{
-                  PaperProps: {
-                    sx: { maxHeight: 280 },
-                  },
-                }}
-                onChange={(event) => setMonthlyDay(Number(event.target.value))}
+          <AnimatePresence initial={false} mode="wait">
+            {frequency === "weekly" ? (
+              <motion.div
+                key="weekly"
+                initial={{ opacity: 0, y: -6, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: "auto" }}
+                exit={{ opacity: 0, y: -6, height: 0 }}
+                transition={{ duration: 0.22, ease: "easeOut" }}
+                style={{ overflow: "hidden" }}
               >
-                {monthDays.map((day) => (
-                  <MenuItem key={day} value={day}>
-                    {day}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          ) : null}
+                <Stack gap={0.5} sx={{ p: 1, border: "1px solid", borderColor: "divider", borderRadius: 2 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Active weekdays
+                  </Typography>
+                  <ToggleButtonGroup
+                    size="small"
+                    fullWidth
+                    value={weeklyDays}
+                    sx={{ "& .MuiToggleButton-root": { py: 0.7 } }}
+                    onChange={(_, value: number[]) => {
+                      if (value.length > 0) {
+                        setWeeklyDays(value);
+                      }
+                    }}
+                  >
+                    {WEEK_DAYS.map((label, index) => (
+                      <AnimatedToggleButton key={label} value={index}>
+                        {label}
+                      </AnimatedToggleButton>
+                    ))}
+                  </ToggleButtonGroup>
+                </Stack>
+              </motion.div>
+            ) : frequency === "monthly" ? (
+              <motion.div
+                key="monthly"
+                initial={{ opacity: 0, y: -6, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: "auto" }}
+                exit={{ opacity: 0, y: -6, height: 0 }}
+                transition={{ duration: 0.22, ease: "easeOut" }}
+                style={{ overflow: "hidden" }}
+              >
+                <FormControl size="small" fullWidth sx={{ mt: 1 }}>
+                  <InputLabel id="edit-monthly-day">Day of month</InputLabel>
+                  <Select
+                    labelId="edit-monthly-day"
+                    value={monthlyDay}
+                    label="Day of month"
+                    MenuProps={{
+                      PaperProps: {
+                        sx: { maxHeight: 280 },
+                      },
+                    }}
+                    onChange={(event) => setMonthlyDay(Number(event.target.value))}
+                  >
+                    {monthDays.map((day) => (
+                      <MenuItem key={day} value={day}>
+                        {day}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={handleSave}>
+        <Button onClick={onClose} sx={{ borderRadius: 2 }}>
+          Cancel
+        </Button>
+        <Button variant="contained" onClick={handleSave} sx={{ borderRadius: 2 }}>
           Save changes
         </Button>
       </DialogActions>

@@ -5,7 +5,7 @@ import CalendarView from "@/components/CalendarView";
 import HabitCard from "@/components/HabitCard";
 import HabitEditDialog from "@/components/HabitEditDialog";
 import InsightCharts from "@/components/InsightCharts";
-import { getTodayKey } from "@/lib/date";
+import { getTodayKey, toDateKey } from "@/lib/date";
 import {
   getHabitStatus,
   isHabitTrackedOnDate,
@@ -19,20 +19,40 @@ import {
 } from "@/lib/storage";
 import { useColorMode } from "@/theme/ThemeProvider";
 import type { Habit, HabitInput, HabitStatus } from "@/types/habit";
-import { DarkModeRounded, LightModeRounded } from "@mui/icons-material";
+import {
+  DarkModeRounded,
+  FileDownloadOutlined,
+  FileUploadOutlined,
+  LightModeRounded,
+  SettingsRounded,
+} from "@mui/icons-material";
 import {
   Alert,
   Box,
+  Button,
   Container,
   IconButton,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
   Paper,
+  Skeleton,
   Stack,
   Tab,
   Tabs,
   Typography,
 } from "@mui/material";
+import { AnimatePresence, motion } from "framer-motion";
 import { useConfirm } from "material-ui-confirm";
-import { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChangeEvent,
+  MouseEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 function formatDisplayDate(date: Date): string {
   const day = date.getDate();
@@ -63,6 +83,45 @@ function normalizeEntriesForSchedule(habit: Habit): Habit {
   };
 }
 
+function parseNotificationTime(value: string): { hours: number; minutes: number } {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value);
+  if (!match) {
+    return { hours: 9, minutes: 0 };
+  }
+
+  return {
+    hours: Number(match[1]),
+    minutes: Number(match[2]),
+  };
+}
+
+function isNotificationsAvailable(): boolean {
+  return typeof window !== "undefined" && "Notification" in window;
+}
+
+async function showHabitNotification(habit: Habit): Promise<void> {
+  const title = `Reminder: ${habit.name}`;
+  const body = `Today's task is waiting. Mark it in Streakly.`;
+
+  if ("serviceWorker" in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.showNotification(title, {
+        body,
+        tag: `habit-${habit.id}`,
+      });
+      return;
+    } catch {
+      // Fall back to window notifications.
+    }
+  }
+
+  new Notification(title, {
+    body,
+    tag: `habit-${habit.id}`,
+  });
+}
+
 export default function HomePage() {
   const THEME_BRAND_REVEAL_MS = 700;
   const THEME_WAVE_TOTAL_MS = 1250;
@@ -81,8 +140,16 @@ export default function HomePage() {
   const [isThemeAnimating, setIsThemeAnimating] = useState(false);
   const toggleTimeoutRef = useRef<number | null>(null);
   const clearWaveTimeoutRef = useRef<number | null>(null);
+  const notificationTimerIdsRef = useRef<number[]>([]);
+  const habitsRef = useRef<Habit[]>([]);
   const [habits, setHabits] = useState<Habit[]>([]);
+  const [isHydratingHabits, setIsHydratingHabits] = useState(true);
   const [habitListTab, setHabitListTab] = useState<"today" | "all">("today");
+  const [notificationPermission, setNotificationPermission] =
+    useState<NotificationPermission>(() =>
+      isNotificationsAvailable() ? Notification.permission : "default",
+    );
+  const [settingsAnchor, setSettingsAnchor] = useState<null | HTMLElement>(null);
   const [selectedHabitId, setSelectedHabitId] = useState<string>("");
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
   const [targetMonth, setTargetMonth] = useState<Date>(() => {
@@ -91,6 +158,12 @@ export default function HomePage() {
   });
   const [message, setMessage] = useState<string>("");
   const [error, setError] = useState<string>("");
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+  const settingsOpen = Boolean(settingsAnchor);
+
+  useEffect(() => {
+    habitsRef.current = habits;
+  }, [habits]);
 
   useEffect(() => {
     return () => {
@@ -100,6 +173,8 @@ export default function HomePage() {
       if (clearWaveTimeoutRef.current) {
         window.clearTimeout(clearWaveTimeoutRef.current);
       }
+      notificationTimerIdsRef.current.forEach((id) => window.clearTimeout(id));
+      notificationTimerIdsRef.current = [];
     };
   }, []);
 
@@ -108,10 +183,103 @@ export default function HomePage() {
       const storedHabits = getHabits();
       setHabits(storedHabits);
       setSelectedHabitId(storedHabits[0]?.id ?? "");
+      setIsHydratingHabits(false);
     });
 
     return () => window.cancelAnimationFrame(frame);
   }, []);
+
+  useEffect(() => {
+    if (isNotificationsAvailable() && process.env.NODE_ENV === "development") {
+      const notifyInDev = async () => {
+        if (Notification.permission === "granted") {
+          await showHabitNotification({
+            id: "dev-reload",
+            name: "Dev reload check",
+            createdAt: new Date().toISOString(),
+            entries: {},
+            frequency: "daily",
+            weeklyDays: [],
+            monthlyDay: 1,
+            notificationTime: "09:00",
+          });
+        }
+      };
+
+      void notifyInDev();
+    }
+  }, []);
+
+  useEffect(() => {
+    notificationTimerIdsRef.current.forEach((id) => window.clearTimeout(id));
+    notificationTimerIdsRef.current = [];
+
+    if (!isNotificationsAvailable() || Notification.permission !== "granted") {
+      return;
+    }
+
+    const getNextRunAt = (habit: Habit, from: Date): Date | null => {
+      const { hours, minutes } = parseNotificationTime(habit.notificationTime);
+
+      for (let dayOffset = 0; dayOffset < 370; dayOffset += 1) {
+        const candidate = new Date(from);
+        candidate.setSeconds(0, 0);
+        candidate.setDate(from.getDate() + dayOffset);
+        candidate.setHours(hours, minutes, 0, 0);
+
+        if (candidate <= from) {
+          continue;
+        }
+
+        if (isHabitTrackedOnDate(habit, toDateKey(candidate))) {
+          return candidate;
+        }
+      }
+
+      return null;
+    };
+
+    const scheduleHabit = (habitId: string) => {
+      const currentHabit = habitsRef.current.find((habit) => habit.id === habitId);
+      if (!currentHabit) {
+        return;
+      }
+
+      const nextRunAt = getNextRunAt(currentHabit, new Date());
+      if (!nextRunAt) {
+        return;
+      }
+
+      const delayMs = nextRunAt.getTime() - Date.now();
+      const timeoutId = window.setTimeout(() => {
+        const latestHabit = habitsRef.current.find((habit) => habit.id === habitId);
+        if (!latestHabit) {
+          return;
+        }
+
+        const todayKeyNow = getTodayKey();
+        if (
+          isHabitTrackedOnDate(latestHabit, todayKeyNow) &&
+          getHabitStatus(latestHabit, todayKeyNow) !== "done"
+        ) {
+          void showHabitNotification(latestHabit);
+        }
+
+        scheduleHabit(habitId);
+      }, Math.max(0, delayMs));
+
+      notificationTimerIdsRef.current.push(timeoutId);
+    };
+
+    habits.forEach((habit) => {
+      scheduleHabit(habit.id);
+    });
+
+    return () => {
+      notificationTimerIdsRef.current.forEach((id) => window.clearTimeout(id));
+      notificationTimerIdsRef.current = [];
+    };
+  }, [habits]);
 
   const today = useMemo(() => getTodayKey(), []);
   const todayLabel = useMemo(() => formatDisplayDate(new Date()), []);
@@ -121,6 +289,7 @@ export default function HomePage() {
     habitListTab === "today"
       ? habits.filter((habit) => isHabitTrackedOnDate(habit, today))
       : habits;
+  const showEmptyState = !isHydratingHabits && visibleHabits.length === 0;
 
   const persistHabits = (nextHabits: Habit[], preferredSelectedId?: string) => {
     setHabits(nextHabits);
@@ -156,6 +325,7 @@ export default function HomePage() {
         input.frequency === "monthly"
           ? (input.monthlyDay ?? now.getDate())
           : now.getDate(),
+      notificationTime: input.notificationTime,
     };
 
     persistHabits([newHabit, ...habits], newHabit.id);
@@ -177,6 +347,7 @@ export default function HomePage() {
           input.frequency === "monthly"
             ? (input.monthlyDay ?? habit.monthlyDay)
             : habit.monthlyDay,
+        notificationTime: input.notificationTime,
       };
 
       return normalizeEntriesForSchedule(updatedHabit);
@@ -185,6 +356,41 @@ export default function HomePage() {
     persistHabits(nextHabits);
     setMessage("Habit updated.");
     setError("");
+  };
+
+  const handleEnableReminders = async () => {
+    if (!isNotificationsAvailable()) {
+      setError("This browser does not support notifications.");
+      return;
+    }
+
+    const permission = await Notification.requestPermission();
+    setNotificationPermission(permission);
+
+    if (permission === "granted") {
+      setMessage("Reminders enabled.");
+      setError("");
+      if (process.env.NODE_ENV === "development") {
+        await showHabitNotification({
+          id: "dev-reload",
+          name: "Dev reload check",
+          createdAt: new Date().toISOString(),
+          entries: {},
+          frequency: "daily",
+          weeklyDays: [],
+          monthlyDay: 1,
+          notificationTime: "09:00",
+        });
+      }
+      return;
+    }
+
+    if (permission === "denied") {
+      setError("Notifications are blocked. Enable them in browser/site settings.");
+      return;
+    }
+
+    setError("Notification permission was not granted.");
   };
 
   const setTodayStatus = (habitId: string, status: HabitStatus) => {
@@ -253,10 +459,18 @@ export default function HomePage() {
     }
   };
 
-  const handleThemeToggle = (event: MouseEvent<HTMLButtonElement>) => {
-    if (isThemeAnimating) {
+  const handleImportChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
       return;
     }
+
+    void handleImport(file);
+    event.target.value = "";
+  };
+
+  const handleThemeToggle = (event: MouseEvent<HTMLButtonElement>) => {
+    if (isThemeAnimating) return;
 
     const rect = event.currentTarget.getBoundingClientRect();
     const x = rect.left + rect.width / 2;
@@ -396,37 +610,90 @@ export default function HomePage() {
             gap={1}
           >
             <Typography variant="h4">Streakly</Typography>
-            <IconButton
-              onClick={handleThemeToggle}
-              aria-label="Toggle theme"
-              disabled={isThemeAnimating}
-              sx={{
-                border: "1px solid",
-                borderColor: "divider",
-                bgcolor: "background.paper",
-                width: 40,
-                height: 40,
-                transition: "transform 220ms ease, background-color 200ms ease",
-                "&:hover": {
-                  transform: "rotate(10deg) scale(1.04)",
-                },
-              }}
-            >
-              <Box
+            <Stack direction="row" alignItems="center" gap={1}>
+              <IconButton
+                onClick={handleThemeToggle}
+                aria-label="Toggle theme"
+                disabled={isThemeAnimating}
                 sx={{
-                  display: "inline-flex",
-                  transform: `scale(${isThemeAnimating ? 0.85 : 1})`,
-                  transition: "transform 260ms ease",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: "background.paper",
+                  width: 40,
+                  height: 40,
+                  transition: "transform 220ms ease, background-color 200ms ease",
+                  "&:hover": {
+                    transform: "rotate(10deg) scale(1.04)",
+                  },
                 }}
               >
-                {mode === "dark" ? (
-                  <LightModeRounded fontSize="small" />
-                ) : (
-                  <DarkModeRounded fontSize="small" />
-                )}
-              </Box>
-            </IconButton>
+                <Box
+                  sx={{
+                    display: "inline-flex",
+                    transform: `scale(${isThemeAnimating ? 0.85 : 1})`,
+                    transition: "transform 260ms ease",
+                  }}
+                >
+                  {mode === "dark" ? (
+                    <LightModeRounded fontSize="small" />
+                  ) : (
+                    <DarkModeRounded fontSize="small" />
+                  )}
+                </Box>
+              </IconButton>
+              <IconButton
+                aria-label="Import and export options"
+                onClick={(event) => setSettingsAnchor(event.currentTarget)}
+                sx={{
+                  border: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: "background.paper",
+                  width: 40,
+                  height: 40,
+                }}
+              >
+                <SettingsRounded fontSize="small" />
+              </IconButton>
+            </Stack>
           </Stack>
+          <Menu
+            anchorEl={settingsAnchor}
+            open={settingsOpen}
+            onClose={() => setSettingsAnchor(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+            transformOrigin={{ vertical: "top", horizontal: "right" }}
+            slotProps={{ paper: { sx: { borderRadius: 2, mt: 0.5 } } }}
+          >
+            <MenuItem
+              onClick={() => {
+                handleExport();
+                setSettingsAnchor(null);
+              }}
+            >
+              <ListItemIcon>
+                <FileDownloadOutlined fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Export</ListItemText>
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                importInputRef.current?.click();
+                setSettingsAnchor(null);
+              }}
+            >
+              <ListItemIcon>
+                <FileUploadOutlined fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Import</ListItemText>
+            </MenuItem>
+          </Menu>
+          <input
+            ref={importInputRef}
+            hidden
+            type="file"
+            accept="application/json"
+            onChange={handleImportChange}
+          />
           <Typography color="text.secondary">
             Build consistency, one day at a time.
           </Typography>
@@ -441,15 +708,23 @@ export default function HomePage() {
           >
             Today: {todayLabel}
           </Typography>
+          {isNotificationsAvailable() && notificationPermission !== "granted" ? (
+            <Stack direction="row" alignItems="center" gap={1} sx={{ mt: 0.8 }}>
+              <Button size="small" variant="outlined" onClick={handleEnableReminders}>
+                Enable reminders
+              </Button>
+              <Typography variant="caption" color="text.secondary">
+                {notificationPermission === "denied"
+                  ? "Blocked. Open browser settings to allow."
+                  : "Allow notifications to get daily habit reminders."}
+              </Typography>
+            </Stack>
+          ) : null}
         </Stack>
 
         <Paper sx={{ p: 2 }}>
           <Stack spacing={2}>
-            <AddHabitForm
-              onAddHabit={addHabit}
-              onExport={handleExport}
-              onImport={handleImport}
-            />
+            <AddHabitForm onAddHabit={addHabit} />
           </Stack>
         </Paper>
 
@@ -477,27 +752,75 @@ export default function HomePage() {
               <Tab value="all" label="All" />
             </Tabs>
           </Stack>
-          {visibleHabits.length === 0 ? (
-            <Paper sx={{ p: 2 }}>
-              <Typography color="text.secondary">
-                {habitListTab === "today"
-                  ? "No habits scheduled for today."
-                  : "No habits yet. Add your first one above."}
-              </Typography>
-            </Paper>
-          ) : (
-            visibleHabits.map((habit) => (
-              <HabitCard
-                key={habit.id}
-                habit={habit}
-                todayStatus={getHabitStatus(habit, today)}
-                isTrackedToday={isHabitTrackedOnDate(habit, today)}
-                onSetTodayStatus={setTodayStatus}
-                onEditHabit={setEditingHabitId}
-                onDeleteHabit={deleteHabit}
-              />
-            ))
-          )}
+          <AnimatePresence mode="wait">
+            {isHydratingHabits ? (
+              <motion.div
+                key="habits-skeleton"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18 }}
+              >
+                <Stack spacing={1}>
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <Paper key={`skeleton-${index}`} sx={{ p: 1.2 }}>
+                      <Stack spacing={0.9}>
+                        <Stack direction="row" justifyContent="space-between" gap={1}>
+                          <Skeleton variant="text" width="42%" height={24} />
+                          <Skeleton variant="rounded" width={96} height={20} />
+                        </Stack>
+                        <Skeleton variant="rounded" height={34} />
+                      </Stack>
+                    </Paper>
+                  ))}
+                </Stack>
+              </motion.div>
+            ) : showEmptyState ? (
+              <motion.div
+                key="habits-empty"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Paper sx={{ p: 2 }}>
+                  <Typography color="text.secondary">
+                    {habitListTab === "today"
+                      ? "No habits scheduled for today."
+                      : "No habits yet. Add your first one above."}
+                  </Typography>
+                </Paper>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="habits-list"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.24 }}
+              >
+                <Stack spacing={1}>
+                  {visibleHabits.map((habit, index) => (
+                    <motion.div
+                      key={habit.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2, delay: index * 0.04 }}
+                    >
+                      <HabitCard
+                        habit={habit}
+                        todayStatus={getHabitStatus(habit, today)}
+                        isTrackedToday={isHabitTrackedOnDate(habit, today)}
+                        onSetTodayStatus={setTodayStatus}
+                        onEditHabit={setEditingHabitId}
+                        onDeleteHabit={deleteHabit}
+                      />
+                    </motion.div>
+                  ))}
+                </Stack>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </Stack>
 
         <CalendarView

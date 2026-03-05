@@ -1,121 +1,74 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useMemo, useRef, useState } from "react";
+import ReminderTimeSelect from "@/components/ReminderTimeSelect";
+import AnimatedToggleButton from "@/components/AnimatedToggleButton";
+import type { HabitFrequency, HabitInput } from "@/types/habit";
 import {
   Box,
   Button,
   FormControl,
-  IconButton,
   InputLabel,
-  ListItemIcon,
-  ListItemText,
-  Menu,
   MenuItem,
   Select,
   Stack,
   TextField,
-  ToggleButton,
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
-import { FileDownloadOutlined, FileUploadOutlined, MoreVert } from "@mui/icons-material";
-import type { HabitFrequency, HabitInput } from "@/types/habit";
+import { AnimatePresence, motion } from "framer-motion";
+import { FormEvent, useMemo, useState } from "react";
 
 interface AddHabitFormProps {
   onAddHabit: (input: HabitInput) => void;
-  onExport: () => void;
-  onImport: (file: File) => void;
 }
 
 const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export default function AddHabitForm({ onAddHabit, onExport, onImport }: AddHabitFormProps) {
+export default function AddHabitForm({
+  onAddHabit,
+}: AddHabitFormProps) {
   const [habitName, setHabitName] = useState("");
   const [frequency, setFrequency] = useState<HabitFrequency>("daily");
   const [weeklyDays, setWeeklyDays] = useState<number[]>([new Date().getDay()]);
   const [monthlyDay, setMonthlyDay] = useState<number>(new Date().getDate());
-  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
-  const importInputRef = useRef<HTMLInputElement | null>(null);
+  const [notificationTime, setNotificationTime] = useState<string>("09:00");
 
-  const monthDays = useMemo(() => Array.from({ length: 31 }, (_, index) => index + 1), []);
-  const menuOpen = Boolean(menuAnchor);
+  const monthDays = useMemo(
+    () => Array.from({ length: 31 }, (_, index) => index + 1),
+    [],
+  );
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const trimmedName = habitName.trim();
-    if (!trimmedName) {
-      return;
-    }
+    if (!trimmedName) return;
 
     onAddHabit({
       name: trimmedName,
       frequency,
       weeklyDays: frequency === "weekly" ? weeklyDays : [],
       monthlyDay: frequency === "monthly" ? monthlyDay : undefined,
+      notificationTime,
     });
 
     setHabitName("");
     setFrequency("daily");
     setWeeklyDays([new Date().getDay()]);
     setMonthlyDay(new Date().getDate());
-  };
-
-  const handleImportChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
-    onImport(file);
-    event.target.value = "";
+    setNotificationTime("09:00");
   };
 
   return (
-    <Stack component="form" gap={1.25} onSubmit={handleSubmit}>
+    <Stack component="form" gap={1.5} onSubmit={handleSubmit}>
       <Stack direction="row" alignItems="center" justifyContent="space-between">
-        <Typography variant="h6">Create Habit</Typography>
-        <IconButton size="small" aria-label="More options" onClick={(event) => setMenuAnchor(event.currentTarget)}>
-          <MoreVert fontSize="small" />
-        </IconButton>
+        <Stack spacing={0.1}>
+          <Typography variant="h6">Create Habit</Typography>
+          <Typography variant="caption" color="text.secondary">
+            Set schedule and reminder in one step.
+          </Typography>
+        </Stack>
       </Stack>
-      <Menu
-        anchorEl={menuAnchor}
-        open={menuOpen}
-        onClose={() => setMenuAnchor(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <MenuItem
-          onClick={() => {
-            onExport();
-            setMenuAnchor(null);
-          }}
-        >
-          <ListItemIcon>
-            <FileDownloadOutlined fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Export JSON</ListItemText>
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            importInputRef.current?.click();
-            setMenuAnchor(null);
-          }}
-        >
-          <ListItemIcon>
-            <FileUploadOutlined fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Import JSON</ListItemText>
-        </MenuItem>
-      </Menu>
-      <input
-        ref={importInputRef}
-        hidden
-        type="file"
-        accept="application/json"
-        onChange={handleImportChange}
-      />
 
       <TextField
         fullWidth
@@ -124,77 +77,108 @@ export default function AddHabitForm({ onAddHabit, onExport, onImport }: AddHabi
         placeholder="Drink water"
         value={habitName}
         onChange={(event) => setHabitName(event.target.value)}
+        sx={{ "& .MuiInputBase-root": { borderRadius: 2 } }}
       />
 
-      <Box>
-        <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: "block" }}>
-          Frequency
-        </Typography>
-        <ToggleButtonGroup
-          exclusive
-          size="small"
-          fullWidth
-          value={frequency}
-          onChange={(_, value: HabitFrequency | null) => {
-            if (value) {
-              setFrequency(value);
-            }
-          }}
-        >
-          <ToggleButton value="daily">Daily</ToggleButton>
-          <ToggleButton value="weekly">Weekly</ToggleButton>
-          <ToggleButton value="monthly">Monthly</ToggleButton>
-        </ToggleButtonGroup>
-      </Box>
-
-      {frequency === "weekly" ? (
-        <Stack gap={0.5}>
-          <Typography variant="caption" color="text.secondary">
-            Active weekdays
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        gap={1}
+        alignItems={{ xs: "stretch", sm: "flex-end" }}
+      >
+        <Box sx={{ flex: 2 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ mb: 0.5, display: "block" }}
+          >
+            Frequency
           </Typography>
           <ToggleButtonGroup
+            exclusive
             size="small"
-            value={weeklyDays}
             fullWidth
-            onChange={(_, value: number[]) => {
-              if (value.length > 0) {
-                setWeeklyDays(value);
-              }
+            value={frequency}
+            sx={{ "& .MuiToggleButton-root": { py: 0.95 } }}
+            onChange={(_, value: HabitFrequency | null) => {
+              if (value) setFrequency(value);
             }}
           >
-            {WEEK_DAYS.map((label, index) => (
-              <ToggleButton key={label} value={index}>
-                {label}
-              </ToggleButton>
-            ))}
+            <AnimatedToggleButton value="daily">Daily</AnimatedToggleButton>
+            <AnimatedToggleButton value="weekly">Weekly</AnimatedToggleButton>
+            <AnimatedToggleButton value="monthly">Monthly</AnimatedToggleButton>
           </ToggleButtonGroup>
-        </Stack>
-      ) : null}
+        </Box>
+        <Box sx={{ flex: 1, minWidth: { sm: 170 } }}>
+          <ReminderTimeSelect
+            id="add-reminder-time"
+            label="Reminder time"
+            value={notificationTime}
+            onChange={setNotificationTime}
+          />
+        </Box>
+      </Stack>
 
-      {frequency === "monthly" ? (
-        <FormControl size="small">
-          <InputLabel id="monthly-day">Day of month</InputLabel>
-          <Select
-            labelId="monthly-day"
-            value={monthlyDay}
-            label="Day of month"
-            MenuProps={{
-              PaperProps: {
-                sx: { maxHeight: 280 },
-              },
-            }}
-            onChange={(event) => setMonthlyDay(Number(event.target.value))}
+      <AnimatePresence initial={false} mode="wait">
+        {frequency === "weekly" ? (
+          <motion.div
+            key="weekly"
+            initial={{ opacity: 0, y: -6, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: "auto" }}
+            exit={{ opacity: 0, y: -6, height: 0 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            style={{ overflow: "hidden" }}
           >
-            {monthDays.map((day) => (
-              <MenuItem key={day} value={day}>
-                {day}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      ) : null}
+            <Stack gap={0.5} sx={{ p: 1, border: "1px solid", borderColor: "divider", borderRadius: 2 }}>
+              <Typography variant="caption" color="text.secondary">
+                Active weekdays
+              </Typography>
+              <ToggleButtonGroup
+                size="small"
+                value={weeklyDays}
+                fullWidth
+                sx={{ "& .MuiToggleButton-root": { py: 0.7 } }}
+                onChange={(_, value: number[]) => {
+                  if (value.length > 0) setWeeklyDays(value);
+                }}
+              >
+                {WEEK_DAYS.map((label, index) => (
+                  <AnimatedToggleButton key={label} value={index}>
+                    {label}
+                  </AnimatedToggleButton>
+                ))}
+              </ToggleButtonGroup>
+            </Stack>
+          </motion.div>
+        ) : frequency === "monthly" ? (
+          <motion.div
+            key="monthly"
+            initial={{ opacity: 0, y: -6, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: "auto" }}
+            exit={{ opacity: 0, y: -6, height: 0 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            style={{ overflow: "hidden" }}
+          >
+            <FormControl size="small" fullWidth sx={{ mt: 1 }}>
+              <InputLabel id="monthly-day">Day of month</InputLabel>
+              <Select
+                labelId="monthly-day"
+                value={monthlyDay}
+                label="Day of month"
+                MenuProps={{ PaperProps: { sx: { maxHeight: 280 } } }}
+                onChange={(event) => setMonthlyDay(Number(event.target.value))}
+              >
+                {monthDays.map((day) => (
+                  <MenuItem key={day} value={day}>
+                    {day}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
-      <Button type="submit" variant="contained" size="large">
+      <Button type="submit" variant="contained" size="large" sx={{ borderRadius: 2 }}>
         Add habit
       </Button>
     </Stack>
