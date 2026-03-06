@@ -5,7 +5,8 @@ import CalendarView from "@/components/CalendarView";
 import HabitCard from "@/components/HabitCard";
 import HabitEditDialog from "@/components/HabitEditDialog";
 import InsightCharts from "@/components/InsightCharts";
-import { getTodayKey, toDateKey } from "@/lib/date";
+import ScrollReveal from "@/components/ScrollReveal";
+import { getTodayKey } from "@/lib/date";
 import {
   getHabitStatus,
   isHabitTrackedOnDate,
@@ -29,7 +30,6 @@ import {
 import {
   Alert,
   Box,
-  Button,
   Container,
   IconButton,
   ListItemIcon,
@@ -83,45 +83,6 @@ function normalizeEntriesForSchedule(habit: Habit): Habit {
   };
 }
 
-function parseNotificationTime(value: string): { hours: number; minutes: number } {
-  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value);
-  if (!match) {
-    return { hours: 9, minutes: 0 };
-  }
-
-  return {
-    hours: Number(match[1]),
-    minutes: Number(match[2]),
-  };
-}
-
-function isNotificationsAvailable(): boolean {
-  return typeof window !== "undefined" && "Notification" in window;
-}
-
-async function showHabitNotification(habit: Habit): Promise<void> {
-  const title = `Reminder: ${habit.name}`;
-  const body = `Today's task is waiting. Mark it in Streakly.`;
-
-  if ("serviceWorker" in navigator) {
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      await registration.showNotification(title, {
-        body,
-        tag: `habit-${habit.id}`,
-      });
-      return;
-    } catch {
-      // Fall back to window notifications.
-    }
-  }
-
-  new Notification(title, {
-    body,
-    tag: `habit-${habit.id}`,
-  });
-}
-
 export default function HomePage() {
   const THEME_BRAND_REVEAL_MS = 700;
   const THEME_WAVE_TOTAL_MS = 1250;
@@ -140,15 +101,9 @@ export default function HomePage() {
   const [isThemeAnimating, setIsThemeAnimating] = useState(false);
   const toggleTimeoutRef = useRef<number | null>(null);
   const clearWaveTimeoutRef = useRef<number | null>(null);
-  const notificationTimerIdsRef = useRef<number[]>([]);
-  const habitsRef = useRef<Habit[]>([]);
   const [habits, setHabits] = useState<Habit[]>([]);
   const [isHydratingHabits, setIsHydratingHabits] = useState(true);
   const [habitListTab, setHabitListTab] = useState<"today" | "all">("today");
-  const [notificationPermission, setNotificationPermission] =
-    useState<NotificationPermission>(() =>
-      isNotificationsAvailable() ? Notification.permission : "default",
-    );
   const [settingsAnchor, setSettingsAnchor] = useState<null | HTMLElement>(null);
   const [selectedHabitId, setSelectedHabitId] = useState<string>("");
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
@@ -162,10 +117,6 @@ export default function HomePage() {
   const settingsOpen = Boolean(settingsAnchor);
 
   useEffect(() => {
-    habitsRef.current = habits;
-  }, [habits]);
-
-  useEffect(() => {
     return () => {
       if (toggleTimeoutRef.current) {
         window.clearTimeout(toggleTimeoutRef.current);
@@ -173,8 +124,6 @@ export default function HomePage() {
       if (clearWaveTimeoutRef.current) {
         window.clearTimeout(clearWaveTimeoutRef.current);
       }
-      notificationTimerIdsRef.current.forEach((id) => window.clearTimeout(id));
-      notificationTimerIdsRef.current = [];
     };
   }, []);
 
@@ -189,97 +138,6 @@ export default function HomePage() {
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
-  useEffect(() => {
-    if (isNotificationsAvailable() && process.env.NODE_ENV === "development") {
-      const notifyInDev = async () => {
-        if (Notification.permission === "granted") {
-          await showHabitNotification({
-            id: "dev-reload",
-            name: "Dev reload check",
-            createdAt: new Date().toISOString(),
-            entries: {},
-            frequency: "daily",
-            weeklyDays: [],
-            monthlyDay: 1,
-            notificationTime: "09:00",
-          });
-        }
-      };
-
-      void notifyInDev();
-    }
-  }, []);
-
-  useEffect(() => {
-    notificationTimerIdsRef.current.forEach((id) => window.clearTimeout(id));
-    notificationTimerIdsRef.current = [];
-
-    if (!isNotificationsAvailable() || Notification.permission !== "granted") {
-      return;
-    }
-
-    const getNextRunAt = (habit: Habit, from: Date): Date | null => {
-      const { hours, minutes } = parseNotificationTime(habit.notificationTime);
-
-      for (let dayOffset = 0; dayOffset < 370; dayOffset += 1) {
-        const candidate = new Date(from);
-        candidate.setSeconds(0, 0);
-        candidate.setDate(from.getDate() + dayOffset);
-        candidate.setHours(hours, minutes, 0, 0);
-
-        if (candidate <= from) {
-          continue;
-        }
-
-        if (isHabitTrackedOnDate(habit, toDateKey(candidate))) {
-          return candidate;
-        }
-      }
-
-      return null;
-    };
-
-    const scheduleHabit = (habitId: string) => {
-      const currentHabit = habitsRef.current.find((habit) => habit.id === habitId);
-      if (!currentHabit) {
-        return;
-      }
-
-      const nextRunAt = getNextRunAt(currentHabit, new Date());
-      if (!nextRunAt) {
-        return;
-      }
-
-      const delayMs = nextRunAt.getTime() - Date.now();
-      const timeoutId = window.setTimeout(() => {
-        const latestHabit = habitsRef.current.find((habit) => habit.id === habitId);
-        if (!latestHabit) {
-          return;
-        }
-
-        const todayKeyNow = getTodayKey();
-        if (
-          isHabitTrackedOnDate(latestHabit, todayKeyNow) &&
-          getHabitStatus(latestHabit, todayKeyNow) !== "done"
-        ) {
-          void showHabitNotification(latestHabit);
-        }
-
-        scheduleHabit(habitId);
-      }, Math.max(0, delayMs));
-
-      notificationTimerIdsRef.current.push(timeoutId);
-    };
-
-    habits.forEach((habit) => {
-      scheduleHabit(habit.id);
-    });
-
-    return () => {
-      notificationTimerIdsRef.current.forEach((id) => window.clearTimeout(id));
-      notificationTimerIdsRef.current = [];
-    };
-  }, [habits]);
 
   const today = useMemo(() => getTodayKey(), []);
   const todayLabel = useMemo(() => formatDisplayDate(new Date()), []);
@@ -325,7 +183,6 @@ export default function HomePage() {
         input.frequency === "monthly"
           ? (input.monthlyDay ?? now.getDate())
           : now.getDate(),
-      notificationTime: input.notificationTime,
     };
 
     persistHabits([newHabit, ...habits], newHabit.id);
@@ -347,7 +204,6 @@ export default function HomePage() {
           input.frequency === "monthly"
             ? (input.monthlyDay ?? habit.monthlyDay)
             : habit.monthlyDay,
-        notificationTime: input.notificationTime,
       };
 
       return normalizeEntriesForSchedule(updatedHabit);
@@ -356,41 +212,6 @@ export default function HomePage() {
     persistHabits(nextHabits);
     setMessage("Habit updated.");
     setError("");
-  };
-
-  const handleEnableReminders = async () => {
-    if (!isNotificationsAvailable()) {
-      setError("This browser does not support notifications.");
-      return;
-    }
-
-    const permission = await Notification.requestPermission();
-    setNotificationPermission(permission);
-
-    if (permission === "granted") {
-      setMessage("Reminders enabled.");
-      setError("");
-      if (process.env.NODE_ENV === "development") {
-        await showHabitNotification({
-          id: "dev-reload",
-          name: "Dev reload check",
-          createdAt: new Date().toISOString(),
-          entries: {},
-          frequency: "daily",
-          weeklyDays: [],
-          monthlyDay: 1,
-          notificationTime: "09:00",
-        });
-      }
-      return;
-    }
-
-    if (permission === "denied") {
-      setError("Notifications are blocked. Enable them in browser/site settings.");
-      return;
-    }
-
-    setError("Notification permission was not granted.");
   };
 
   const setTodayStatus = (habitId: string, status: HabitStatus) => {
@@ -708,30 +529,29 @@ export default function HomePage() {
           >
             Today: {todayLabel}
           </Typography>
-          {isNotificationsAvailable() && notificationPermission !== "granted" ? (
-            <Stack direction="row" alignItems="center" gap={1} sx={{ mt: 0.8 }}>
-              <Button size="small" variant="outlined" onClick={handleEnableReminders}>
-                Enable reminders
-              </Button>
-              <Typography variant="caption" color="text.secondary">
-                {notificationPermission === "denied"
-                  ? "Blocked. Open browser settings to allow."
-                  : "Allow notifications to get daily habit reminders."}
-              </Typography>
-            </Stack>
-          ) : null}
         </Stack>
 
-        <Paper sx={{ p: 2 }}>
-          <Stack spacing={2}>
-            <AddHabitForm onAddHabit={addHabit} />
-          </Stack>
-        </Paper>
+        <ScrollReveal>
+          <Paper sx={{ p: 2 }}>
+            <Stack spacing={2}>
+              <AddHabitForm onAddHabit={addHabit} />
+            </Stack>
+          </Paper>
+        </ScrollReveal>
 
-        {message ? <Alert severity="success">{message}</Alert> : null}
-        {error ? <Alert severity="error">{error}</Alert> : null}
+        {message ? (
+          <ScrollReveal delay={0.03}>
+            <Alert severity="success">{message}</Alert>
+          </ScrollReveal>
+        ) : null}
+        {error ? (
+          <ScrollReveal delay={0.03}>
+            <Alert severity="error">{error}</Alert>
+          </ScrollReveal>
+        ) : null}
 
-        <Stack spacing={1.25}>
+        <ScrollReveal delay={0.05}>
+          <Stack spacing={1.25}>
           <Stack
             direction="row"
             alignItems="center"
@@ -821,25 +641,32 @@ export default function HomePage() {
               </motion.div>
             )}
           </AnimatePresence>
-        </Stack>
+          </Stack>
+        </ScrollReveal>
 
-        <CalendarView
-          habits={habits}
-          selectedHabitId={selectedHabitId}
-          targetMonth={targetMonth}
-          onChangeMonth={setTargetMonth}
-          onSelectHabit={setSelectedHabitId}
-          onSetDateStatus={setDateStatus}
-        />
+        <ScrollReveal delay={0.08}>
+          <CalendarView
+            habits={habits}
+            selectedHabitId={selectedHabitId}
+            targetMonth={targetMonth}
+            onChangeMonth={setTargetMonth}
+            onSelectHabit={setSelectedHabitId}
+            onSetDateStatus={setDateStatus}
+          />
+        </ScrollReveal>
 
-        <InsightCharts habits={habits} targetMonth={targetMonth} />
+        <ScrollReveal delay={0.1}>
+          <InsightCharts habits={habits} targetMonth={targetMonth} />
+        </ScrollReveal>
 
-        <Stack alignItems="center">
-          <Typography variant="body2" color="text.secondary">
-            Private by design; your data stays stored locally, and only you can
-            access it.
-          </Typography>
-        </Stack>
+        <ScrollReveal delay={0.12}>
+          <Stack alignItems="center">
+            <Typography variant="body2" color="text.secondary">
+              Private by design; your data stays stored locally, and only you can
+              access it.
+            </Typography>
+          </Stack>
+        </ScrollReveal>
       </Stack>
 
       <HabitEditDialog

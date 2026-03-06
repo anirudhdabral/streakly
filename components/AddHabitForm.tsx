@@ -1,6 +1,5 @@
 "use client";
 
-import ReminderTimeSelect from "@/components/ReminderTimeSelect";
 import AnimatedToggleButton from "@/components/AnimatedToggleButton";
 import type { HabitFrequency, HabitInput } from "@/types/habit";
 import {
@@ -31,7 +30,6 @@ export default function AddHabitForm({
   const [frequency, setFrequency] = useState<HabitFrequency>("daily");
   const [weeklyDays, setWeeklyDays] = useState<number[]>([new Date().getDay()]);
   const [monthlyDay, setMonthlyDay] = useState<number>(new Date().getDate());
-  const [notificationTime, setNotificationTime] = useState<string>("09:00");
 
   const monthDays = useMemo(
     () => Array.from({ length: 31 }, (_, index) => index + 1),
@@ -49,14 +47,12 @@ export default function AddHabitForm({
       frequency,
       weeklyDays: frequency === "weekly" ? weeklyDays : [],
       monthlyDay: frequency === "monthly" ? monthlyDay : undefined,
-      notificationTime,
     });
 
     setHabitName("");
     setFrequency("daily");
     setWeeklyDays([new Date().getDay()]);
     setMonthlyDay(new Date().getDate());
-    setNotificationTime("09:00");
   };
 
   return (
@@ -65,7 +61,7 @@ export default function AddHabitForm({
         <Stack spacing={0.1}>
           <Typography variant="h6">Create Habit</Typography>
           <Typography variant="caption" color="text.secondary">
-            Set schedule and reminder in one step.
+            Set your schedule in one step.
           </Typography>
         </Stack>
       </Stack>
@@ -80,12 +76,7 @@ export default function AddHabitForm({
         sx={{ "& .MuiInputBase-root": { borderRadius: 2 } }}
       />
 
-      <Stack
-        direction={{ xs: "column", sm: "row" }}
-        gap={1}
-        alignItems={{ xs: "stretch", sm: "flex-end" }}
-      >
-        <Box sx={{ flex: 2 }}>
+      <Box>
           <Typography
             variant="caption"
             color="text.secondary"
@@ -108,15 +99,6 @@ export default function AddHabitForm({
             <AnimatedToggleButton value="monthly">Monthly</AnimatedToggleButton>
           </ToggleButtonGroup>
         </Box>
-        <Box sx={{ flex: 1, minWidth: { sm: 170 } }}>
-          <ReminderTimeSelect
-            id="add-reminder-time"
-            label="Reminder time"
-            value={notificationTime}
-            onChange={setNotificationTime}
-          />
-        </Box>
-      </Stack>
 
       <AnimatePresence initial={false} mode="wait">
         {frequency === "weekly" ? (

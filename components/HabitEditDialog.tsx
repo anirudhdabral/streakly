@@ -1,6 +1,5 @@
 "use client";
 
-import ReminderTimeSelect from "@/components/ReminderTimeSelect";
 import AnimatedToggleButton from "@/components/AnimatedToggleButton";
 import type { Habit, HabitFrequency, HabitInput } from "@/types/habit";
 import {
@@ -47,9 +46,6 @@ export default function HabitEditDialog({
   const [monthlyDay, setMonthlyDay] = useState<number>(
     () => habit?.monthlyDay ?? new Date().getDate(),
   );
-  const [notificationTime, setNotificationTime] = useState<string>(
-    () => habit?.notificationTime ?? "09:00",
-  );
 
   const monthDays = useMemo(
     () => Array.from({ length: 31 }, (_, index) => index + 1),
@@ -67,7 +63,6 @@ export default function HabitEditDialog({
       frequency,
       weeklyDays: frequency === "weekly" ? weeklyDays : [],
       monthlyDay: frequency === "monthly" ? monthlyDay : undefined,
-      notificationTime,
     });
 
     onClose();
@@ -86,12 +81,7 @@ export default function HabitEditDialog({
             onChange={(event) => setHabitName(event.target.value)}
             sx={{ "& .MuiInputBase-root": { borderRadius: 2 } }}
           />
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            gap={1}
-            alignItems={{ xs: "stretch", sm: "flex-end" }}
-          >
-            <Box sx={{ flex: 2 }}>
+          <Box>
               <Typography
                 variant="caption"
                 color="text.secondary"
@@ -116,15 +106,6 @@ export default function HabitEditDialog({
                 <AnimatedToggleButton value="monthly">Monthly</AnimatedToggleButton>
               </ToggleButtonGroup>
             </Box>
-            <Box sx={{ flex: 1, minWidth: { sm: 170 } }}>
-              <ReminderTimeSelect
-                id="edit-reminder-time"
-                label="Reminder time"
-                value={notificationTime}
-                onChange={setNotificationTime}
-              />
-            </Box>
-          </Stack>
 
           <AnimatePresence initial={false} mode="wait">
             {frequency === "weekly" ? (

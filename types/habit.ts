@@ -10,7 +10,6 @@ export interface Habit {
   frequency: HabitFrequency;
   weeklyDays: number[];
   monthlyDay: number;
-  notificationTime: string;
 }
 
 export interface HabitInput {
@@ -18,7 +17,6 @@ export interface HabitInput {
   frequency: HabitFrequency;
   weeklyDays: number[];
   monthlyDay?: number;
-  notificationTime: string;
 }
 
 export interface HabitExportPayload {

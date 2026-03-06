@@ -17,17 +17,6 @@ interface LegacyHabit {
   createdAt: string;
 }
 
-function normalizeNotificationTime(value: unknown): string {
-  if (
-    typeof value === "string" &&
-    /^([01]\d|2[0-3]):([0-5]\d)$/.test(value)
-  ) {
-    return value;
-  }
-
-  return "09:00";
-}
-
 function isStatus(value: unknown): value is HabitStatus {
   return (
     typeof value === "string" && VALID_STATUSES.includes(value as HabitStatus)
@@ -78,7 +67,6 @@ function normalizeHabit(candidate: unknown): Habit | null {
     raw.monthlyDay <= 31
       ? Math.floor(raw.monthlyDay)
       : createdMonthDay;
-  const notificationTime = normalizeNotificationTime(raw.notificationTime);
 
   const entries: Record<string, HabitStatus> = {};
 
@@ -109,7 +97,6 @@ function normalizeHabit(candidate: unknown): Habit | null {
     frequency,
     weeklyDays,
     monthlyDay,
-    notificationTime,
     entries,
   };
 }
